@@ -42,7 +42,7 @@
         </form>
       </div>
       <div class="panel" id="unlock-panel" hidden>
-        <div class="panel-head"><div class="step-icon">🔐</div><div><h2>解锁私人记录</h2><p>密码仅用于当前设备的解密，不会发送到服务器。</p></div></div>
+        <div class="panel-head"><div class="step-icon">🔐</div><div><h2>解锁私人记录</h2><p>日本时间每天首次解锁需输入密码；当天再次打开自动解锁。密码不会发送到服务器。</p></div></div>
         <form id="unlock-form"><label class="field">解锁密码<input id="unlock-pass" type="password" autocomplete="current-password" required placeholder="输入本地密码"></label><button id="unlock-submit" type="submit" class="primary full">解锁我的看板 →</button></form>
       </div>
       <div class="panel" id="locked-import"><h3>使用其他设备的加密备份</h3><p>支持导入本应用导出的加密 JSON。必须知道该备份对应的密码。</p><label class="import-label">选择加密备份文件<input id="import-locked-file" type="file" accept=".json,application/json"></label><label class="field">备份密码<input id="import-locked-pass" type="password" autocomplete="off" placeholder="输入备份的解锁密码"></label><button id="import-locked-btn" type="button" class="secondary full">验证并导入</button></div>
@@ -83,12 +83,12 @@
 
       <section class="screen" id="screen-settings" hidden>
         <div class="heading"><span class="eyebrow">SECURITY CENTER</span><h1>隐私与设置</h1><p>所有个人设置和记录都保存在加密保险库内</p></div>
-        <article class="panel"><div class="between"><h2>本地加密状态</h2><span class="pill pill-green">已解锁</span></div><p>记录使用 AES-256-GCM 加密，密钥由密码通过 PBKDF2 派生。GitHub上只托管通用应用程序和公共训练模板。</p><button id="manual-lock" type="button" class="secondary full">立即锁定私人记录</button></article>
+        <article class="panel"><div class="between"><h2>本地加密状态</h2><span class="pill pill-green">已解锁</span></div><p>记录使用 AES-256-GCM 加密，密钥由密码通过 PBKDF2 派生。当天免密会将不可导出的密钥缓存在本机；主动锁定将取消当天免密。GitHub上只托管通用应用程序和公共训练模板。</p><button id="manual-lock" type="button" class="secondary full">立即锁定私人记录</button></article>
         <article class="panel"><h2>个人目标设置</h2><label class="field">8周计划开始日期<input id="setting-start" type="date"></label><div class="two-cols"><label class="field">训练日 kcal<input id="setting-train" type="number" min="800" max="8000" inputmode="numeric"></label><label class="field">休息日 kcal<input id="setting-rest" type="number" min="800" max="8000" inputmode="numeric"></label><label class="field">周六参考 kcal<input id="setting-free" type="number" min="800" max="10000" inputmode="numeric"></label><label class="field">蛋白质 g<input id="setting-protein" type="number" min="30" max="400" inputmode="numeric"></label></div><button id="save-settings" type="button" class="secondary full">保存个人目标</button></article>
         <article class="panel"><h2>加密备份</h2><p>导出的 JSON 仍是加密数据，不能直接查看体重和训练记录。请安全保存文件和密码，丢失密码无法解密。</p><button id="backup-btn" type="button" class="primary full">导出加密备份（JSON）</button><label class="import-label">选择要导入的加密备份<input id="import-file" type="file" accept=".json,application/json"></label><label class="field">备份对应的密码<input id="import-pass" type="password" autocomplete="off" placeholder="输入备份密码"></label><button id="import-btn" type="button" class="secondary full">验证并替换本地记录</button></article>
         <article class="panel"><h2>修改解锁密码</h2><p>所有记录会使用新密码派生的密钥重新加密。旧备份仍需要旧密码。</p><label class="field">新密码（至少12字符）<input type="password" id="change-pass" minlength="12" maxlength="200" autocomplete="new-password"></label><label class="field">确认新密码<input type="password" id="change-confirm" minlength="12" maxlength="200" autocomplete="new-password"></label><button id="change-btn" type="button" class="secondary full">重新加密并修改密码</button></article>
         <article class="panel warn-border"><h2>删除本机私人记录</h2><p>此操作无法撤销。务必先导出并验证你的加密备份。</p><button id="delete-vault" class="danger" type="button">永久删除本机保险库</button></article>
-        <p class="privacy-footnote">安全边界：本地加密保护锁定状态和静态存储记录，不代表网站本身私有。已解锁时的数据位于浏览器内存；如果设备被入侵或未来网站代码被恶意替换，仍有风险。请使用可信部署和强密码。</p>
+        <p class="privacy-footnote">安全边界：本地训练数据仍以密文存储。当日免密码功能会在本机 IndexedDB 保存一个不可导出的解密密钥，同一设备和浏览器在有效日期内可使用它解密；因此不适合多人共用或不可信设备。日本时间换日后需重新验证密码，主动锁定可立即取消免密。网站本身仍是公开的，恶意脚本或设备入侵可能读取解锁态数据；请使用可信部署和强密码。</p>
       </section>
     </div>
   </main>

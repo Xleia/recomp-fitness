@@ -4,6 +4,9 @@
 // personal calorie targets, or workout journals in this file or the GitHub repo.
 const VAULT_KEY = 'recomp.encrypted.v2';
 const LEGACY_KEY = 'recomp8week';
+const DAILY_DB = 'recomp.daily-unlock.v1';
+const DAILY_REVOKED_KEY = 'recomp.daily-unlock.revoked';
+const TOKYO_DAY = new Intl.DateTimeFormat('en-CA', {timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'});
 const VAULT_VERSION = 2;
 const ITERATIONS = 600000;
 const AAD = new TextEncoder().encode('RECOMP|encrypted-vault|v2');
@@ -145,6 +148,83 @@ let foodDay=new Date().getDay();
 let foodDate=formattedDate(new Date());
 let currentScreen='home';
 let locking=false;
+let manualLockRequested=false;
+let unlockedDay=null;
+let authGeneration=0;
+let restoring=false;
+
+function todayInTokyo() {
+  const parts=TOKYO_DAY.formatToParts(new Date());
+  const part=type=>parts.find(p=>p.type===type)?.value;
+  return `${part('year')}-${part('month')}-${part('day')}`;
+}
+// Store only the non-extractable CryptoKey, never the password or decrypted journal.
+// IndexedDB uses structured cloning, supported by current Safari / WebKit versions.
+function dailyKeyStore(action, value) {
+  return new Promise((resolve,reject)=>{
+    if(!window.indexedDB){reject(Error('浏览器不支持当天免密码'));return;}
+    const opening=indexedDB.open(DAILY_DB,1);
+    opening.onupgradeneeded=()=>opening.result.createObjectStore('session');
+    opening.onerror=()=>reject(opening.error||Error('无法读取本地密钥'));
+    opening.onblocked=()=>reject(Error('本地密钥数据库被占用'));
+    opening.onsuccess=()=>{
+      const db=opening.result;
+      try {
+        const tx=db.transaction('session',action==='get'?'readonly':'readwrite');
+        const store=tx.objectStore('session');
+        let result;
+        const request=action==='get'?store.get('today'):action==='put'?store.put(value,'today'):store.delete('today');
+        request.onsuccess=()=>{result=request.result;};
+        tx.oncomplete=()=>{db.close();resolve(result);};
+        tx.onabort=()=>{db.close();reject(tx.error||Error('无法保存本地密钥'));};
+      }catch(err){db.close();reject(err);}
+    };
+  });
+}
+async function rememberToday(key,salt) {
+  try {
+    await dailyKeyStore('put',{day:todayInTokyo(),salt,key});
+    localStorage.removeItem(DAILY_REVOKED_KEY);
+    return true;
+  }catch(err){console.warn('RECOMP: daily unlock unavailable',err);return false;}
+}
+async function forgetToday() {
+  // A local tombstone also prevents restoration when IndexedDB deletion fails.
+  localStorage.setItem(DAILY_REVOKED_KEY,'1');
+  try{await dailyKeyStore('delete');}catch(err){console.warn('RECOMP: failed to clear remembered key',err);}
+}
+async function restoreToday() {
+  if(restoring||locking||keyRef||document.hidden||!hasVault()||localStorage.getItem(DAILY_REVOKED_KEY))return;
+  if(!window.isSecureContext||!window.crypto?.subtle)return;
+  const generation=authGeneration;
+  restoring=true;
+  try {
+    const remembered=await dailyKeyStore('get');
+    if(!remembered)return;
+    if(remembered.day!==todayInTokyo()){
+      if(generation===authGeneration&&!keyRef)await dailyKeyStore('delete');
+      return;
+    }
+    const env=parseEnvelope(localStorage.getItem(VAULT_KEY));
+    if(remembered.salt!==env.salt||!remembered.key||remembered.key.type!=='secret')throw Error('记住的密钥已失效');
+    const plaintext=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64ToBytes(env.iv),additionalData:AAD,tagLength:128},remembered.key,b64ToBytes(env.ciphertext));
+    const value=JSON.parse(decoder.decode(plaintext));
+    assertState(value);
+    if(generation!==authGeneration||locking||document.hidden||keyRef||localStorage.getItem(DAILY_REVOKED_KEY))return;
+    state=value;keyRef=remembered.key;saltRef=b64ToBytes(env.salt);
+    unlockUI();
+  }catch(err){
+    console.warn('RECOMP: remembered unlock rejected',err);
+    if(generation===authGeneration&&!keyRef){
+      try{await dailyKeyStore('delete');}catch(e){console.warn('RECOMP: failed to discard expired key',e);}
+    }
+  }finally{restoring=false;}
+}
+function handleReturn() {
+  if(document.hidden)return;
+  if(keyRef){if(unlockedDay!==todayInTokyo())void lock(true);}
+  else void restoreToday();
+}
 function hasVault() {return !!localStorage.getItem(VAULT_KEY);}
 function drawAuth() {
   const ready=!!(window.isSecureContext&&window.crypto&&crypto.subtle);
@@ -160,6 +240,7 @@ function renderEverything() {
   renderHome();renderTraining();renderFood();renderProgress();renderSettings();
 }
 function unlockUI() {
+  unlockedDay=todayInTokyo();
   hide('auth');hide('app',false);hide('nav',false);hide('lock-btn',false);
   trainWeek=Math.min(7,Math.max(0,weekDifference(state.settings.start,monday(formattedDate(new Date())))));
   trainDay=new Date().getDay();trainDate=shiftDays(state.settings.start,trainWeek*7+((trainDay+6)%7));
@@ -169,14 +250,22 @@ function unlockUI() {
 function resetSensitiveForms() {
   ['setup-pass','setup-confirm','unlock-pass','import-pass','import-locked-pass','change-pass','change-confirm'].forEach(id=>$(id).value='');
 }
-async function lock() {
-  if(locking||!keyRef)return;
+async function lock(forgetRememberedKey=false) {
+  if(forgetRememberedKey)manualLockRequested=true;
+  if(locking||(!keyRef&&!manualLockRequested))return;
   locking=true;
-  try {await writeQueue.catch(()=>{});}finally{
-    keyRef=null;saltRef=null;state=null;
+  authGeneration++;
+  try {
+    await writeQueue.catch(()=>{});
+    if(manualLockRequested)await forgetToday();
+  }finally{
+    keyRef=null;saltRef=null;state=null;unlockedDay=null;
     resetSensitiveForms();
     hide('app');hide('nav');hide('lock-btn');
-    drawAuth();locking=false;
+    drawAuth();
+    const resume=!manualLockRequested&&!document.hidden;
+    manualLockRequested=false;locking=false;
+    if(resume)void restoreToday();
   }
 }
 function persist() {
@@ -211,8 +300,10 @@ async function setup(e) {
   const env=await seal(fresh,key,salt);
   localStorage.setItem(VAULT_KEY,JSON.stringify(env));
   if(legacyExists)localStorage.removeItem(LEGACY_KEY);
-  state=fresh;keyRef=key;saltRef=salt;
-  resetSensitiveForms();unlockUI();notify(migrate?'旧版记录已迁移并加密':'加密保险库已创建');
+  state=fresh;keyRef=key;saltRef=salt;authGeneration++;
+  const remembered=await rememberToday(key,env.salt);
+  resetSensitiveForms();unlockUI();
+  notify(remembered?(migrate?'旧版记录已迁移并加密':'加密保险库已创建'):'保险库已创建；此浏览器暂不支持当天免密码');
 }
 async function unlock(e) {
   e.preventDefault();
@@ -220,8 +311,9 @@ async function unlock(e) {
   const env=parseEnvelope(localStorage.getItem(VAULT_KEY));
   let result;
   try {result=await unseal(env,pass);}catch {$('unlock-pass').value='';throw Error('密码不正确，或保险库数据已损坏');}
-  state=result.value;keyRef=result.key;saltRef=b64ToBytes(env.salt);
-  resetSensitiveForms();unlockUI();notify('私人记录已解锁');
+  state=result.value;keyRef=result.key;saltRef=b64ToBytes(env.salt);authGeneration++;
+  const remembered=await rememberToday(result.key,env.salt);
+  resetSensitiveForms();unlockUI();notify(remembered?'私人记录已解锁，今天无需重复输入密码':'私人记录已解锁；此浏览器暂不支持当天免密码');
 }
 async function guarded(btnId,fn) {
   if($(btnId).disabled)return;
@@ -462,10 +554,13 @@ async function importBackup(file,password) {
   try{result=await unseal(env,password);}catch{throw Error('备份密码错误或文件已损坏');}
   if(!confirm('将用该加密备份替换本机现有记录。现有记录将被覆盖，确定继续？'))return;
   await writeQueue.catch(()=>{});
+  authGeneration++;
+  await forgetToday();
   localStorage.setItem(VAULT_KEY,JSON.stringify(env));
   localStorage.removeItem(LEGACY_KEY);
   state=result.value;keyRef=result.key;saltRef=b64ToBytes(env.salt);
-  resetSensitiveForms();unlockUI();notify('已导入并验证加密备份');
+  const remembered=await rememberToday(result.key,env.salt);
+  resetSensitiveForms();unlockUI();notify(remembered?'已导入并验证加密备份':'备份已导入；此浏览器暂不支持当天免密码');
 }
 async function changePassword() {
   if(!state||!keyRef)throw Error('请先解锁');
@@ -476,22 +571,29 @@ async function changePassword() {
   await writeQueue;
   const salt=randomBytes(16),key=await deriveKey(pass,salt);
   const env=await seal(state,key,salt);
+  authGeneration++;
+  await forgetToday();
   localStorage.setItem(VAULT_KEY,JSON.stringify(env));
-  saltRef=salt;keyRef=key;resetSensitiveForms();notify('密码已修改，所有记录重新加密');
+  saltRef=salt;keyRef=key;
+  const remembered=await rememberToday(key,env.salt);
+  resetSensitiveForms();notify(remembered?'密码已修改，所有记录重新加密':'密码已修改；此浏览器暂不支持当天免密码');
 }
-function purgeVault() {
+async function purgeVault() {
   if(!confirm('这会永久删除此设备的全部加密记录。请先确认已妥善备份。继续吗？'))return;
   if(!confirm('最后确认：真的删除整个本地保险库吗？'))return;
+  authGeneration++;
+  await writeQueue.catch(()=>{});
+  await forgetToday();
   localStorage.removeItem(VAULT_KEY);
-  state=null;keyRef=null;saltRef=null;drawAuth();notify('本机加密保险库已删除');
+  state=null;keyRef=null;saltRef=null;unlockedDay=null;drawAuth();notify('本机加密保险库已删除');
 }
 function init() {
   $('setup-start').value=monday(formattedDate(new Date()));
   $('measure-date').value=formattedDate(new Date());
   $('setup-form').addEventListener('submit',e=>guarded('setup-submit',()=>setup(e)));
   $('unlock-form').addEventListener('submit',e=>guarded('unlock-submit',()=>unlock(e)));
-  $('lock-btn').addEventListener('click',()=>lock());
-  $('manual-lock').addEventListener('click',()=>lock());
+  $('lock-btn').addEventListener('click',()=>lock(true));
+  $('manual-lock').addEventListener('click',()=>lock(true));
   $('home-train').addEventListener('click',()=>navigate('train'));
   $('home-food').addEventListener('click',()=>navigate('food'));
   document.querySelectorAll('[data-screen]').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.screen)));
@@ -507,14 +609,17 @@ function init() {
   $('import-btn').addEventListener('click',()=>guarded('import-btn',()=>importBackup($('import-file').files[0],$('import-pass').value)));
   $('import-locked-btn').addEventListener('click',()=>guarded('import-locked-btn',()=>importBackup($('import-locked-file').files[0],$('import-locked-pass').value)));
   $('change-btn').addEventListener('click',()=>guarded('change-btn',changePassword));
-  $('delete-vault').addEventListener('click',purgeVault);
+  $('delete-vault').addEventListener('click',()=>guarded('delete-vault',purgeVault));
   $('delete-legacy').addEventListener('click',()=>{
     if(!confirm('确定删除旧版未加密记录吗？无法恢复，建议先确保你不再需要它。'))return;
     localStorage.removeItem(LEGACY_KEY);hide('legacy-notice');notify('旧版明文记录已删除');
   });
-  document.addEventListener('visibilitychange',()=>{if(document.hidden)lock();});
-  window.addEventListener('pagehide',()=>lock());
-  try{drawAuth();}catch(err){showError(err);}
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)void lock();else handleReturn();});
+  window.addEventListener('pagehide',()=>{void lock();});
+  window.addEventListener('pageshow',handleReturn);
+  window.addEventListener('focus',handleReturn);
+  setInterval(()=>{if(!document.hidden&&keyRef&&unlockedDay!==todayInTokyo())void lock(true);},60000);
+  try{drawAuth();void restoreToday();}catch(err){showError(err);}
   if('serviceWorker' in navigator&&window.isSecureContext)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(err=>console.warn('offline cache unavailable',err)));
 }
 document.addEventListener('DOMContentLoaded',init);
