@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1220">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="RECOMP">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; upgrade-insecure-requests">
+  <title>RECOMP · 私人训练与饮食看板</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" type="image/png" href="./icon-192.png">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+  <link rel="stylesheet" href="./styles.css">
+  <script defer src="./app.js"></script>
+</head>
+<body>
+<div class="shell">
+  <header class="header">
+    <div class="brand"><span class="logo">R<span class="logo-dot">.</span></span><div><strong>RECOMP</strong><span>TRAIN • FUEL • PROGRESS</span></div></div>
+    <button id="lock-btn" class="header-btn" type="button" hidden>🔒 锁定</button>
+  </header>
+
+  <main>
+    <section id="auth" class="auth">
+      <div class="auth-hero"><span class="pill pill-green">PRIVATE · OFFLINE FIRST</span><h1>你的训练，<br><em>只属于你。</em></h1><p>运动与饮食记录在设备本地加密。没有云端账号，也不会上传个人数据。</p></div>
+      <div id="security-error" class="warning" hidden>当前环境不支持安全加密。请在 HTTPS 网站或 localhost 中打开，避免使用文件预览。</div>
+      <div class="panel" id="setup-panel" hidden>
+        <div class="panel-head"><div class="step-icon">01</div><div><h2>创建本地保险库</h2><p>只需设置一次。忘记密码后无法恢复未备份的数据。</p></div></div>
+        <form id="setup-form" autocomplete="off">
+          <label class="field">解锁密码（至少12字符）<input id="setup-pass" type="password" required minlength="12" maxlength="200" autocomplete="new-password" placeholder="建议使用长密码短语"></label>
+          <label class="field">再次输入密码<input id="setup-confirm" type="password" required minlength="12" maxlength="200" autocomplete="new-password" placeholder="确认密码"></label>
+          <div class="section-label">个人档案 · 仅加密保存在设备</div>
+          <div class="two-cols"><label class="field">起始体重（kg，可选）<input id="setup-weight" type="number" min="20" max="400" step="0.01" inputmode="decimal" placeholder="自行填写"></label><label class="field">起始腰围（cm，可选）<input id="setup-waist" type="number" min="30" max="250" step="0.1" inputmode="decimal" placeholder="自行填写"></label></div>
+          <label class="field">8周计划的开始日期<input id="setup-start" type="date" required></label>
+          <div class="section-label">个人营养目标 · 后续可修改</div>
+          <div class="two-cols"><label class="field">力量日 kcal<input id="setup-train-kcal" type="number" min="800" max="8000" inputmode="numeric" required placeholder="自行填写"></label><label class="field">休息日 kcal<input id="setup-rest-kcal" type="number" min="800" max="8000" inputmode="numeric" required placeholder="自行填写"></label><label class="field">周六参考 kcal<input id="setup-free-kcal" type="number" min="800" max="10000" inputmode="numeric" required placeholder="自行填写"></label><label class="field">每日蛋白质 g<input id="setup-protein" type="number" min="30" max="400" inputmode="numeric" required placeholder="自行填写"></label></div>
+          <div id="legacy-notice" class="warning" hidden><strong>检测到旧版未加密记录</strong><p>创建密码时可将其迁移进保险库，成功保存后会删除旧版明文副本。</p><label class="checkline"><input id="legacy-migrate" type="checkbox" checked> 迁移旧版记录</label><button id="delete-legacy" type="button" class="quiet">仅删除旧版明文记录</button></div>
+          <button class="primary full" type="submit" id="setup-submit">加密并创建保险库 →</button>
+        </form>
+      </div>
+      <div class="panel" id="unlock-panel" hidden>
+        <div class="panel-head"><div class="step-icon">🔐</div><div><h2>解锁私人记录</h2><p>密码仅用于当前设备的解密，不会发送到服务器。</p></div></div>
+        <form id="unlock-form"><label class="field">解锁密码<input id="unlock-pass" type="password" autocomplete="current-password" required placeholder="输入本地密码"></label><button id="unlock-submit" type="submit" class="primary full">解锁我的看板 →</button></form>
+      </div>
+      <div class="panel" id="locked-import"><h3>使用其他设备的加密备份</h3><p>支持导入本应用导出的加密 JSON。必须知道该备份对应的密码。</p><label class="import-label">选择加密备份文件<input id="import-locked-file" type="file" accept=".json,application/json"></label><label class="field">备份密码<input id="import-locked-pass" type="password" autocomplete="off" placeholder="输入备份的解锁密码"></label><button id="import-locked-btn" type="button" class="secondary full">验证并导入</button></div>
+      <div class="trustbar">AES-256-GCM <span>·</span> PBKDF2-SHA256 <span>·</span> 本地离线</div>
+    </section>
+
+    <div id="app" hidden>
+      <section class="screen" id="screen-home">
+        <div class="heading"><span class="eyebrow">PERSONAL DASHBOARD</span><h1>你的8周计划</h1><p id="today-label"></p></div>
+        <div class="stats"><article class="stat"><span>最新体重</span><strong id="stat-weight">—</strong><small>kg</small></article><article class="stat"><span>最新腰围</span><strong id="stat-waist">—</strong><small>cm</small></article><article class="stat"><span>计划进度</span><strong id="stat-week">—</strong><small>/ 8周</small></article><article class="stat"><span>蛋白质目标</span><strong id="stat-protein">—</strong><small>g/天</small></article></div>
+        <article class="panel accent"><div class="between"><span class="eyebrow">TODAY'S SESSION</span><span id="today-pill" class="pill"></span></div><h2 id="today-training"></h2><p id="today-description"></p><button id="home-train" type="button" class="primary full">查看今日训练 <span>→</span></button></article>
+        <article class="panel"><div class="between"><span class="eyebrow">DAILY FUEL</span><span class="pill pill-green">个人设置</span></div><div class="big-value"><strong id="today-calories">—</strong><span>kcal / 参考目标</span></div><p>周六自由饮食日也请记录篮球补给。每日总热量与宏量营养根据实际记录计算。</p><button id="home-food" type="button" class="secondary full">查看饮食记录 →</button></article>
+        <article class="panel"><h3>本周训练策略</h3><p id="week-advice"></p></article>
+      </section>
+
+      <section class="screen" id="screen-train" hidden>
+        <div class="heading"><span class="eyebrow">WORKOUT JOURNAL</span><h1>训练记录</h1><p>四分化 · 每组重量与次数独立保存</p></div>
+        <div id="train-week-row" class="between panel slim"><button id="week-prev" type="button" class="icon-btn">←</button><div class="center"><strong id="train-week-title">第1周</strong><small id="train-week-range"></small></div><button id="week-next" type="button" class="icon-btn">→</button></div>
+        <div id="train-days" class="day-tabs" role="group" aria-label="选择训练日期"></div>
+        <article class="panel"><div class="between"><h2 id="train-title"></h2><span class="pill" id="train-count"></span></div><p id="train-note"></p><div class="field"><label for="workout-date">本次训练日期</label><input type="date" id="workout-date"></div><div id="workout-list"></div><button id="save-workout" type="button" class="primary full">🔒 加密保存本次训练</button></article>
+        <article class="panel"><h3>渐进超负荷</h3><p>优先完成规范次数；所有工作组达到次数区间上限且满足RIR后，再尝试小幅加重。训练前热身不计入工作组。</p></article>
+      </section>
+
+      <section class="screen" id="screen-food" hidden>
+        <div class="heading"><span class="eyebrow">NUTRITION JOURNAL</span><h1>每日饮食</h1><p>工作日外食 · 周六全天自由 · 周日正常恢复</p></div>
+        <div id="food-days" class="day-tabs" role="group" aria-label="选择饮食日期"></div>
+        <article class="panel"><div class="between"><h2 id="food-title"></h2><span class="pill pill-green" id="food-target"></span></div><label class="field">记录日期<input id="food-date" type="date"></label><div id="food-banner" class="callout" hidden></div><div id="meal-list"></div><div class="summary-total"><div><span>当天热量合计</span><strong id="total-kcal">0 kcal</strong></div><div><span>蛋白质合计</span><strong id="total-protein">0 g</strong></div><div><span>脂肪合计</span><strong id="total-fat">0 g</strong></div><div><span>碳水合计</span><strong id="total-carbs">0 g</strong></div></div><div class="progressbar"><span id="kcal-fill"></span></div><small id="remaining-kcal"></small><button id="save-food" type="button" class="primary full">🔒 加密保存当天饮食</button></article>
+      </section>
+
+      <section class="screen" id="screen-progress" hidden>
+        <div class="heading"><span class="eyebrow">BODY COMPOSITION</span><h1>进度追踪</h1><p>优先观察腰围趋势与力量表现，不只盯体重</p></div>
+        <article class="panel"><h2>添加测量</h2><div class="three-cols"><label class="field">日期<input type="date" id="measure-date"></label><label class="field">体重 kg<input type="number" min="20" max="400" step="0.01" id="measure-weight" inputmode="decimal"></label><label class="field">腰围 cm<input type="number" min="30" max="250" step="0.1" id="measure-waist" inputmode="decimal"></label></div><button id="save-measure" type="button" class="primary full">🔒 保存测量</button></article>
+        <article class="panel"><div class="between"><h3>体重变化</h3><small>kg</small></div><svg id="weight-chart" class="trend" viewBox="0 0 340 154" aria-label="体重趋势图"></svg><div class="between"><h3>腰围变化</h3><small>cm</small></div><svg id="waist-chart" class="trend" viewBox="0 0 340 154" aria-label="腰围趋势图"></svg></article>
+        <article class="panel"><h3>身体数据历史</h3><div id="measure-history"></div></article>
+        <article class="panel"><h3>近期训练记录</h3><div id="workout-history"></div></article>
+        <article class="panel"><h3>近期饮食记录</h3><div id="food-history"></div></article>
+      </section>
+
+      <section class="screen" id="screen-settings" hidden>
+        <div class="heading"><span class="eyebrow">SECURITY CENTER</span><h1>隐私与设置</h1><p>所有个人设置和记录都保存在加密保险库内</p></div>
+        <article class="panel"><div class="between"><h2>本地加密状态</h2><span class="pill pill-green">已解锁</span></div><p>记录使用 AES-256-GCM 加密，密钥由密码通过 PBKDF2 派生。GitHub上只托管通用应用程序和公共训练模板。</p><button id="manual-lock" type="button" class="secondary full">立即锁定私人记录</button></article>
+        <article class="panel"><h2>个人目标设置</h2><label class="field">8周计划开始日期<input id="setting-start" type="date"></label><div class="two-cols"><label class="field">训练日 kcal<input id="setting-train" type="number" min="800" max="8000" inputmode="numeric"></label><label class="field">休息日 kcal<input id="setting-rest" type="number" min="800" max="8000" inputmode="numeric"></label><label class="field">周六参考 kcal<input id="setting-free" type="number" min="800" max="10000" inputmode="numeric"></label><label class="field">蛋白质 g<input id="setting-protein" type="number" min="30" max="400" inputmode="numeric"></label></div><button id="save-settings" type="button" class="secondary full">保存个人目标</button></article>
+        <article class="panel"><h2>加密备份</h2><p>导出的 JSON 仍是加密数据，不能直接查看体重和训练记录。请安全保存文件和密码，丢失密码无法解密。</p><button id="backup-btn" type="button" class="primary full">导出加密备份（JSON）</button><label class="import-label">选择要导入的加密备份<input id="import-file" type="file" accept=".json,application/json"></label><label class="field">备份对应的密码<input id="import-pass" type="password" autocomplete="off" placeholder="输入备份密码"></label><button id="import-btn" type="button" class="secondary full">验证并替换本地记录</button></article>
+        <article class="panel"><h2>修改解锁密码</h2><p>所有记录会使用新密码派生的密钥重新加密。旧备份仍需要旧密码。</p><label class="field">新密码（至少12字符）<input type="password" id="change-pass" minlength="12" maxlength="200" autocomplete="new-password"></label><label class="field">确认新密码<input type="password" id="change-confirm" minlength="12" maxlength="200" autocomplete="new-password"></label><button id="change-btn" type="button" class="secondary full">重新加密并修改密码</button></article>
+        <article class="panel warn-border"><h2>删除本机私人记录</h2><p>此操作无法撤销。务必先导出并验证你的加密备份。</p><button id="delete-vault" class="danger" type="button">永久删除本机保险库</button></article>
+        <p class="privacy-footnote">安全边界：本地加密保护锁定状态和静态存储记录，不代表网站本身私有。已解锁时的数据位于浏览器内存；如果设备被入侵或未来网站代码被恶意替换，仍有风险。请使用可信部署和强密码。</p>
+      </section>
+    </div>
+  </main>
+  <nav id="nav" class="bottom-nav" hidden aria-label="主导航"><button type="button" class="active" data-screen="home"><span>⌂</span>总览</button><button type="button" data-screen="train"><span>▣</span>训练</button><button type="button" data-screen="food"><span>◉</span>饮食</button><button type="button" data-screen="progress"><span>⌁</span>进度</button><button type="button" data-screen="settings"><span>⚙</span>设置</button></nav>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</div>
+</body></html>
