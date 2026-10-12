@@ -133,7 +133,7 @@
   }
   function makeRow(food,amount=100) {
     return recompute({id:food.id,code:food.code||'',name:String(food.name).slice(0,140),
-      source:String(food.source).slice(0,140),baseUnit:food.baseUnit||'g',
+      source:String(food.source).slice(0,140),category:food.category||'',baseUnit:food.baseUnit||'g',
       per100:copy(food.per100),amount,unit:food.baseUnit||'g',factor:1});
   }
   function totals(rows) {
