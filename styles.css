@@ -25,3 +25,9 @@
 #nutrition-selected .empty{margin:7px 0}
 #screen-library select,#screen-library input{max-width:100%;min-width:0}
 @media(max-width:390px){.nutrition-controls{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.nutrition-kcal{align-self:center}.nutrition-controls .small-btn{justify-self:end}.nutrition-day-header button{font-size:11px}}
+
+/* Bilingual food-name display and reversible search expansion */
+.nutrition-japanese{display:block;color:var(--muted);font-size:12px;overflow-wrap:anywhere}
+.nutrition-pagination{display:flex;gap:8px;flex-wrap:wrap;padding-top:12px}
+.nutrition-pagination .secondary{flex:1;min-width:min(160px,100%);margin:0;font-size:13px}
+.nutrition-day-row>div small{overflow-wrap:anywhere}
