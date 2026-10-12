@@ -310,6 +310,7 @@
     const current=dayDraft(foodDate);
     const boxes=[...document.querySelectorAll('#meal-list .meal')];
     boxes.forEach((box,i)=>{
+      box.querySelectorAll(':scope > .nutrition-day-items').forEach(x=>x.remove());
       const wrap=node('div','nutrition-day-items');
       const heading=node('div','nutrition-day-header');
       heading.append(node('strong','','食材明细 · '+current[i].length+' 项'),
@@ -319,13 +320,17 @@
       current[i].forEach((row,j)=>{
         const line=node('div','nutrition-day-row');
         const info=node('div');
-        nameBlock(info,row);info.append(node('small','',row.unit+' · '+fmt(row.snap?.kcal)+' kcal'));
+        nameBlock(info,row);
+        if(row.dishMeta?.ja)info.append(node('small','nutrition-japanese','日文：'+row.dishMeta.ja));
+        if(row.dishMeta?.mode==='outside')info.append(node('small','nutrition-japanese dish-record-range',dishRange(row)));
+        info.append(node('small','nutrition-day-calories',row.unit+' · '+fmt(row.snap?.kcal)+' kcal'));
         const input=node('input','nutrition-day-amount');input.type='number';input.inputMode='decimal';input.step='any';input.min='0.1';input.max='10000';input.value=row.amount;
         input.setAttribute('aria-label',row.name+'数量（'+row.unit+'）');
         input.addEventListener('input',()=>{
           row.amount=input.value===''?0:Number(input.value);
           recompute(row);
-          info.lastElementChild.textContent=row.unit+' · '+fmt(row.snap.kcal)+' kcal';
+          info.querySelector('.nutrition-day-calories').textContent=row.unit+' · '+fmt(row.snap.kcal)+' kcal';
+          const range=info.querySelector('.dish-record-range');if(range)range.textContent=dishRange(row);
           updateTotals();
         });
         input.addEventListener('change',()=>renderMeals());
@@ -362,6 +367,52 @@
     dayDraft(foodDate)[index].push(...rows);
     mealIndex=index;selected=[];navigate('food');
     notify('已加入食材明细。请点击「加密保存当天饮食」完成保存');
+  }
+  // RECOMP DISH INTEGRATION V1: A dish is one snapshot row, not a duplicate list of ingredients.
+  function addDishToDay(input) {
+    if (!state || !input || typeof input !== 'object') throw Error('请先解锁，并选择一道菜');
+    const index = Number(input.mealIndex), amount = Number(input.grams);
+    if (!Number.isInteger(index) || index < 0 || index > 3) throw Error('餐次不正确');
+    if (!Number.isFinite(amount) || amount < 1 || amount > 10000) throw Error('菜品重量需在1～10000g之间');
+    const name = String(input.name || '').trim().slice(0, 140);
+    if (!name) throw Error('菜品名称不能为空');
+    const per100 = {};
+    for (const key of FIELDS) {
+      const value = Number(input.per100?.[key]);
+      if (!validateMacro(value, key)) throw Error('菜品的营养数据不符合有效范围');
+      per100[key] = value;
+    }
+    const meta = input.meta || {};
+    const savedMeta = {
+      id: String(meta.id || '').slice(0, 60),
+      ja: String(meta.ja || '').slice(0, 120),
+      mode: meta.mode === 'outside' ? 'outside' : 'home',
+      oil: String(meta.oil || '').slice(0, 20),
+      lowPer100: Number(meta.lowPer100) || 0,
+      highPer100: Number(meta.highPer100) || 0,
+      yieldGrams: Number(meta.yieldGrams) || 0,
+      recipe: Array.isArray(meta.recipe) ? structuredClone(meta.recipe.slice(0, 40)) : []
+    };
+    const target = dayDraft(foodDate)[index];
+    if (target.length >= 100) throw Error('单餐最多记录100项食物');
+    const row = recompute({
+      id: 'dish-entry-' + crypto.randomUUID(), name,
+      code: '', source: String(input.source || '菜品参考估算').slice(0, 140),
+      category: '成品菜', baseUnit: 'g', per100,
+      amount, unit: 'g', factor: 1, dishMeta: savedMeta
+    });
+    target.push(row);
+    mealIndex = index; selected = [];
+    navigate('food');
+    notify('成品菜已加入本次饮食。请点击「加密保存当天饮食」完成保存');
+  }
+  function dishRange(row) {
+    if (row.dishMeta?.mode !== 'outside') return '';
+    const low = Number(row.dishMeta.lowPer100) * Number(row.amount) / 100;
+    const high = Number(row.dishMeta.highPer100) * Number(row.amount) / 100;
+    return (Number.isFinite(low) && Number.isFinite(high) && high >= low)
+      ? '外食估算范围 ' + fmt(low) + '–' + fmt(high) + ' kcal（记录中间估算值）'
+      : '外食估算值（非商家实测）';
   }
   async function saveTemplate() {
     if(!selected.length)throw Error('没有可以保存的食物组合');
@@ -424,6 +475,7 @@
   const originalRenderLibrary=renderLibrary;
   window.Nutrition={
     init,renderLibrary(){originalRenderLibrary();renderCustom();},
-    renderMeals,openForMeal,draftTotals,collectRows,mealTotals,savedDay,clearSession,manualForDay,savedManual
+    renderMeals,openForMeal,draftTotals,collectRows,mealTotals,savedDay,clearSession,manualForDay,savedManual,
+    addDishToDay,getActiveMealIndex(){return mealIndex;}
   };
 })();
