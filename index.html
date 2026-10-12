@@ -15,6 +15,7 @@
   <link rel="apple-touch-icon" href="./icon-192.png">
   <link rel="stylesheet" href="./styles.css">
   <script defer src="./app.js"></script>
+  <script defer src="./nutrition.js"></script>
 </head>
 <body>
 <div class="shell">
@@ -69,9 +70,19 @@
       <section class="screen" id="screen-food" hidden>
         <div class="heading"><span class="eyebrow">NUTRITION JOURNAL</span><h1>每日饮食</h1><p>工作日外食 · 周六全天自由 · 周日正常恢复</p></div>
         <div id="food-days" class="day-tabs" role="group" aria-label="选择饮食日期"></div>
-        <article class="panel"><div class="between"><h2 id="food-title"></h2><span class="pill pill-green" id="food-target"></span></div><label class="field">记录日期<input id="food-date" type="date"></label><div id="food-banner" class="callout" hidden></div><div id="meal-list"></div><div class="summary-total"><div><span>当天热量合计</span><strong id="total-kcal">0 kcal</strong></div><div><span>蛋白质合计</span><strong id="total-protein">0 g</strong></div><div><span>脂肪合计</span><strong id="total-fat">0 g</strong></div><div><span>碳水合计</span><strong id="total-carbs">0 g</strong></div></div><div class="progressbar"><span id="kcal-fill"></span></div><small id="remaining-kcal"></small><button id="save-food" type="button" class="primary full">🔒 加密保存当天饮食</button></article>
+        <article class="panel"><div class="between"><h2 id="food-title"></h2><span class="pill pill-green" id="food-target"></span></div><label class="field">记录日期<input id="food-date" type="date"></label><div id="food-banner" class="callout" hidden></div><button id="food-library-launch" type="button" class="secondary full">🔎 食物数据库 / 营养计算器</button><div id="meal-list"></div><div class="summary-total"><div><span>当天热量合计</span><strong id="total-kcal">0 kcal</strong></div><div><span>蛋白质合计</span><strong id="total-protein">0 g</strong></div><div><span>脂肪合计</span><strong id="total-fat">0 g</strong></div><div><span>碳水合计</span><strong id="total-carbs">0 g</strong></div></div><div class="progressbar"><span id="kcal-fill"></span></div><small id="remaining-kcal"></small><button id="save-food" type="button" class="primary full">🔒 加密保存当天饮食</button></article>
       </section>
 
+      <section class="screen" id="screen-library" hidden>
+        <div class="heading"><span class="eyebrow">FOOD COMPOSITION</span><h1>食物营养计算器</h1><p id="nutrition-current-date"></p></div>
+        <button id="nutrition-back" type="button" class="secondary">← 返回每日饮食</button>
+        <article class="panel"><h2>搜索食物</h2><label class="field">中文 / 日文 / 食品编号<input id="nutrition-query" placeholder="燕麦 / オートミール / 01004" autocomplete="off"></label><label class="field">食品分类<select id="nutrition-category"></select></label><small id="nutrition-result-count"></small><div id="nutrition-results"></div></article>
+        <article class="panel"><div class="between"><h2>营养计算清单</h2><small id="nutrition-selected-count">0 项</small></div><div id="nutrition-selected"></div><div class="summary-total"><div><span>热量</span><strong id="nutrition-total-kcal">0 kcal</strong></div><div><span>蛋白质</span><strong id="nutrition-total-protein">0 g</strong></div><div><span>脂肪</span><strong id="nutrition-total-fat">0 g</strong></div><div><span>碳水</span><strong id="nutrition-total-carbs">0 g</strong></div></div><label class="field">添加到餐次<select id="nutrition-meal"><option value="0">早餐</option><option value="1">午餐</option><option value="2">加餐 / 运动补给</option><option value="3">晚餐</option></select></label><button id="nutrition-add-day" type="button" class="primary full">添加到当天饮食（返回后记得保存）</button><button id="nutrition-save-template" type="button" class="secondary full">☆ 保存为常用餐模板</button></article>
+        <article class="panel"><h2>收藏食品</h2><div id="nutrition-favorites"></div></article>
+        <article class="panel"><h2>常用餐模板</h2><div id="nutrition-templates"></div></article>
+        <article class="panel"><h2>自定义品牌食品</h2><p>请按包装标签填写每100g或每100ml营养值。所有个人食品仅保存在加密保险库。</p><form id="nutrition-custom-form"><label class="field">食品名称<input id="nutrition-custom-name" required maxlength="100" placeholder="例如：明治全脂牛奶"></label><label class="field">品牌<input id="nutrition-custom-brand" maxlength="60"></label><label class="field">营养标示基准<select id="nutrition-custom-unit"><option value="g">每100g</option><option value="ml">每100ml</option></select></label><div class="two-cols"><label class="field">热量 kcal<input id="nutrition-custom-kcal" required type="number" min="0" max="1000" step="any"></label><label class="field">蛋白质 g<input id="nutrition-custom-protein" required type="number" min="0" max="100" step="any"></label><label class="field">脂肪 g<input id="nutrition-custom-fat" required type="number" min="0" max="100" step="any"></label><label class="field">碳水 g<input id="nutrition-custom-carbs" required type="number" min="0" max="100" step="any"></label></div><button type="submit" class="secondary full">加密保存食品</button></form><div id="nutrition-custom-list"></div></article>
+        <p class="privacy-footnote">数据来源：日本食品标准成分表（八订）增补2023年，第三方整理食物数据。原表各食品以每100g可食部分计量；数据未经逐条独立核对，请以产品包装为准。自定义食品为个人记录，不会上传至 GitHub。</p>
+      </section>
       <section class="screen" id="screen-progress" hidden>
         <div class="heading"><span class="eyebrow">BODY COMPOSITION</span><h1>进度追踪</h1><p>优先观察腰围趋势与力量表现，不只盯体重</p></div>
         <article class="panel"><h2>添加测量</h2><div class="three-cols"><label class="field">日期<input type="date" id="measure-date"></label><label class="field">体重 kg<input type="number" min="20" max="400" step="0.01" id="measure-weight" inputmode="decimal"></label><label class="field">腰围 cm<input type="number" min="30" max="250" step="0.1" id="measure-waist" inputmode="decimal"></label></div><button id="save-measure" type="button" class="primary full">🔒 保存测量</button></article>
