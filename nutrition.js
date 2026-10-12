@@ -325,7 +325,7 @@
         input.addEventListener('input',()=>{
           row.amount=input.value===''?0:Number(input.value);
           recompute(row);
-          info.lastElementChild.textContent=row.unit+' · '+fmt(row.snap.kcal)+' kcal;
+          info.lastElementChild.textContent=row.unit+' · '+fmt(row.snap.kcal)+' kcal';
           updateTotals();
         });
         input.addEventListener('change',()=>renderMeals());
