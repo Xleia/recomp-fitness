@@ -236,6 +236,7 @@ function drawAuth() {
   if(!ready){busy('setup-submit',true);busy('unlock-submit',true);busy('import-locked-btn',true);}
 }
 function renderEverything() {
+  window.Nutrition?.clearSession();
   $('measure-date').value=formattedDate(new Date());
   renderHome();renderTraining();renderFood();renderProgress();renderSettings();
 }
@@ -261,6 +262,7 @@ async function lock(forgetRememberedKey=false) {
   }finally{
     keyRef=null;saltRef=null;state=null;unlockedDay=null;
     resetSensitiveForms();
+    window.Nutrition?.clearSession();
     hide('app');hide('nav');hide('lock-btn');
     drawAuth();
     const resume=!manualLockRequested&&!document.hidden;
@@ -328,6 +330,7 @@ function navigate(screen) {
   if(screen==='home')renderHome();
   if(screen==='train')renderTraining();
   if(screen==='food')renderFood();
+  if(screen==='library')window.Nutrition?.renderLibrary();
   if(screen==='progress')renderProgress();
   if(screen==='settings')renderSettings();
   window.scrollTo(0,0);
@@ -439,11 +442,14 @@ function renderFood() {
     const noteBox=el('label','meal-note');const note=el('input');note.type='text';note.maxLength=200;note.placeholder='食物、品牌、份量或备注（可选）';note.value=typeof current.note==='string'?current.note:'';note.dataset.meal=String(i);note.dataset.nutrient='note';noteBox.append(note);box.append(noteBox);
     container.append(box);
   }
+  window.Nutrition?.renderMeals();
   updateTotals();
 }
 function updateTotals() {
   const totals={kcal:0,protein:0,fat:0,carbs:0};
   for(const type of Object.keys(totals))document.querySelectorAll(`[data-nutrient="${type}"]`).forEach(e=>totals[type]+=Number(e.value)||0);
+  const automatic=window.Nutrition?.draftTotals(foodDate)||{};
+  for(const type of Object.keys(totals))totals[type]+=Number(automatic[type])||0;
   const {kcal,protein,fat,carbs}=totals;
   text('total-kcal',`${Math.round(kcal)} kcal`);text('total-protein',`${Math.round(protein*10)/10} g`);
   text('total-fat',`${Math.round(fat*10)/10} g`);text('total-carbs',`${Math.round(carbs*10)/10} g`);
@@ -466,8 +472,9 @@ async function saveFood() {
     entries.push(entry);
   }
   const lunch=$('lunch-selector');
-  state.nutrition[date]={date,entries,lunch:lunch&&lunch.value!==''?Number(lunch.value):null};
-  await persist();notify('饮食已加密保存');renderFood();
+  const foodItems=window.Nutrition?.collectRows(date)||Array.from({length:4},()=>[]);
+  state.nutrition[date]={date,entries,lunch:lunch&&lunch.value!==''?Number(lunch.value):null,foodItems};
+  await persist();window.Nutrition?.savedDay(date);notify('饮食已加密保存');renderFood();
 }
 async function saveMeasure() {
   const date=$('measure-date').value,w=num('measure-weight'),wa=num('measure-waist');
@@ -515,7 +522,7 @@ function renderProgress() {
   const food=$('food-history');food.replaceChildren();
   const fed=Object.entries(state.nutrition).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,20);
   if(!fed.length)food.append(el('div','empty','还没有饮食记录'));
-  for(const [date,item] of fed){const entries=Array.isArray(item.entries)?item.entries:[];const kcal=entries.reduce((s,x)=>s+(Number(x.kcal)||0),0);const protein=entries.reduce((s,x)=>s+(Number(x.protein)||0),0);food.append(histRow(date,`${Math.round(kcal)} kcal · 蛋白质 ${Math.round(protein*10)/10} g`));}
+  for(const [date,item] of fed){const entries=Array.isArray(item.entries)?item.entries:[];const items=Array.isArray(item.foodItems)?item.foodItems.flat():[];const kcal=entries.reduce((s,x)=>s+(Number(x.kcal)||0),0)+items.reduce((s,x)=>s+(Number(x.snap?.kcal)||0),0);const protein=entries.reduce((s,x)=>s+(Number(x.protein)||0),0)+items.reduce((s,x)=>s+(Number(x.snap?.protein)||0),0);food.append(histRow(date,`${Math.round(kcal)} kcal · 蛋白质 ${Math.round(protein*10)/10} g`));}
 }
 function renderSettings() {
   const goal=state.settings;
@@ -588,6 +595,7 @@ async function purgeVault() {
   state=null;keyRef=null;saltRef=null;unlockedDay=null;drawAuth();notify('本机加密保险库已删除');
 }
 function init() {
+  window.Nutrition?.init();
   $('setup-start').value=monday(formattedDate(new Date()));
   $('measure-date').value=formattedDate(new Date());
   $('setup-form').addEventListener('submit',e=>guarded('setup-submit',()=>setup(e)));
