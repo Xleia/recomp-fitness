@@ -326,7 +326,7 @@ function navigate(screen) {
   if(!state)return;
   currentScreen=screen;
   document.querySelectorAll('.screen').forEach(s=>{s.hidden=s.id!==`screen-${screen}`;});
-  document.querySelectorAll('[data-screen]').forEach(b=>b.classList.toggle('active',b.dataset.screen===screen));
+  document.querySelectorAll('[data-screen]').forEach(b=>b.classList.toggle('active',b.dataset.screen===(screen==='library'?'food':screen)));
   if(screen==='home')renderHome();
   if(screen==='train')renderTraining();
   if(screen==='food')renderFood();
@@ -593,6 +593,7 @@ async function purgeVault() {
   await writeQueue.catch(()=>{});
   await forgetToday();
   localStorage.removeItem(VAULT_KEY);
+  window.Nutrition?.clearSession();
   state=null;keyRef=null;saltRef=null;unlockedDay=null;drawAuth();notify('本机加密保险库已删除');
 }
 function init() {
