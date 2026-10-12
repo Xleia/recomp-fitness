@@ -80,7 +80,7 @@
   const fmt = n => (Math.round((Number(n)||0)*10)/10).toLocaleString('zh-CN',{maximumFractionDigits:1});
   const rounding = n => Math.round(n*100)/100;
   const copy = obj => structuredClone(obj);
-  let publicFoods=null, loadPromise=null, loadError='', selected=[], drafts=new Map(), manualDrafts=new Map(), mealIndex=0, resultLimit=18;
+  let publicFoods=null, loadPromise=null, loadError='', selected=[], drafts=new Map(), manualDrafts=new Map(), mealIndex=0, resultLimit=5;
 
   function library() {
     if(!state)throw Error('请先解锁私人记录');
@@ -182,7 +182,7 @@
   }
   function mealTotals(date,index){return totals(dayDraft(date)[index]);}
   function clearSession() {
-    drafts.clear();manualDrafts.clear();selected=[];mealIndex=0;resultLimit=18;
+    drafts.clear();manualDrafts.clear();selected=[];mealIndex=0;resultLimit=5;
     ['nutrition-results','nutrition-selected','nutrition-templates','nutrition-favorites'].forEach(id=>{const x=byId(id);if(x)x.replaceChildren();});
   }
   function savedDay(date){drafts.delete(date);}
@@ -270,8 +270,8 @@
       card.append(actions);host.append(card);
     }
     const actions=node('div','nutrition-pagination');
-    if(total>resultLimit)actions.append(button('显示更多（还剩 '+(total-resultLimit)+' 条）',()=>{resultLimit+=18;renderResults();},'secondary'));
-    if(resultLimit>18)actions.append(button('↑ 收起（仅显示前18条）',()=>{resultLimit=18;renderResults();byId('nutrition-results').scrollIntoView({block:'start',behavior:'smooth'});},'secondary'));
+    if(total>resultLimit)actions.append(button('显示更多（还剩 '+(total-resultLimit)+' 条）',()=>{resultLimit+=5;renderResults();},'secondary'));
+    if(resultLimit>5)actions.append(button('↑ 收起（仅显示前5条）',()=>{resultLimit=5;renderResults();byId('nutrition-results').scrollIntoView({block:'start',behavior:'smooth'});},'secondary'));
     host.append(actions);
   }
   function renderFavorites() {
@@ -339,7 +339,8 @@
       });
       if(current[i].length)wrap.append(node('small','','明细小计 '+fmt(totals(current[i]).kcal)+' kcal；修改数量后保存当天饮食才会加密写入。'));
       const grid=box.querySelector('.meal-grid');
-      grid?.before(wrap);
+      const foldBody=box.querySelector('.fold-body')||box;
+      foldBody.insertBefore(wrap,foldBody.firstChild);
       if(grid && !box.querySelector('.nutrition-manual-label'))grid.before(node('small','nutrition-manual-label','手动补录（额外营养，避免与食材明细重复输入）'));
     });
   }
@@ -465,8 +466,8 @@
   function init() {
     byId('nutrition-back').addEventListener('click',()=>navigate('food'));
     byId('food-library-launch').addEventListener('click',()=>{captureManual();selected=[];mealIndex=0;navigate('library');});
-    byId('nutrition-query').addEventListener('input',()=>{resultLimit=18;renderResults();});
-    byId('nutrition-category').addEventListener('change',()=>{resultLimit=18;renderResults();});
+    byId('nutrition-query').addEventListener('input',()=>{resultLimit=5;renderResults();});
+    byId('nutrition-category').addEventListener('change',()=>{resultLimit=5;renderResults();});
     byId('nutrition-meal').addEventListener('change',()=>{mealIndex=Number(byId('nutrition-meal').value);});
     byId('nutrition-add-day').addEventListener('click',()=>{try{addToDay();}catch(err){showError(err);}});
     byId('nutrition-save-template').addEventListener('click',()=>{void saveTemplate().catch(showError);});
