@@ -1,5 +1,5 @@
-const CACHE = 'recomp-private-shell-v4';
-const FILES = ['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+const CACHE = 'recomp-private-shell-v5';
+const FILES = ['./','./index.html','./styles.css','./app.js','./nutrition.js','./foods-mext-2023.csv','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
 });
