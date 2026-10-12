@@ -415,7 +415,8 @@ function renderFood() {
   hide('food-banner',foodDay!==6);
   if(foodDay===6)text('food-banner','周六全天自由饮食：火锅、烤肉、拉面等都可以。记录实际摄入与篮球补给，不需要刻意暴食或隔天断食。');
   const saved=state.nutrition[foodDate]||{};
-  const entries=Array.isArray(saved.entries)?saved.entries:MEAL_NAMES.map(blankEntry);
+  const manualDraft=window.Nutrition?.manualForDay(foodDate);
+  const entries=manualDraft?.entries||(Array.isArray(saved.entries)?saved.entries:MEAL_NAMES.map(blankEntry));
   const container=$('meal-list');container.replaceChildren();
   for(let i=0;i<4;i++){
     const box=el('div','meal');box.append(el('div','meal-title',MEAL_NAMES[i]));
@@ -425,7 +426,7 @@ function renderFood() {
       const select=el('select','meal-options');select.setAttribute('aria-label','选择外食午餐');
       const opt0=el('option','', '选择常见外食（估算数据可修改）');opt0.value='';select.append(opt0);
       LUNCHES.forEach((m,j)=>{const option=el('option','',`${m.name} · ≈${m.kcal}kcal / ${m.protein}g蛋白`);option.value=String(j);select.append(option);});
-      select.value=Number.isInteger(saved.lunch)?String(saved.lunch):'';
+      select.value=manualDraft?manualDraft.lunch:(Number.isInteger(saved.lunch)?String(saved.lunch):'');
       select.id='lunch-selector';box.append(select);
       const apply=el('button','small-btn','把估算值填入午餐记录');apply.type='button';apply.addEventListener('click',()=>{
         const m=LUNCHES[Number(select.value)];if(select.value===''||!m){notify('请先选择午餐',true);return;}
@@ -474,7 +475,7 @@ async function saveFood() {
   const lunch=$('lunch-selector');
   const foodItems=window.Nutrition?.collectRows(date)||Array.from({length:4},()=>[]);
   state.nutrition[date]={date,entries,lunch:lunch&&lunch.value!==''?Number(lunch.value):null,foodItems};
-  await persist();window.Nutrition?.savedDay(date);notify('饮食已加密保存');renderFood();
+  await persist();window.Nutrition?.savedDay(date);window.Nutrition?.savedManual(date);notify('饮食已加密保存');renderFood();
 }
 async function saveMeasure() {
   const date=$('measure-date').value,w=num('measure-weight'),wa=num('measure-waist');
