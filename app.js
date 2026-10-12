@@ -6,6 +6,9 @@ const VAULT_KEY = 'recomp.encrypted.v2';
 const LEGACY_KEY = 'recomp8week';
 const DAILY_DB = 'recomp.daily-unlock.v1';
 const DAILY_REVOKED_KEY = 'recomp.daily-unlock.revoked';
+// Remember only the last UI tab (no measurements, food logs or passwords).
+const LAST_SCREEN_KEY = 'recomp.last-screen.v1';
+const VALID_SCREENS = ['home','train','food','library','progress','settings'];
 const TOKYO_DAY = new Intl.DateTimeFormat('en-CA', {timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'});
 const VAULT_VERSION = 2;
 const ITERATIONS = 600000;
@@ -153,8 +156,9 @@ let unlockedDay=null;
 let authGeneration=0;
 let restoring=false;
 // UI-only accordion state; never written to the encrypted nutrition/workout records.
-const foldedExercises=new Set();
-const foldedMeals=new Set();
+// The default is collapsed. These sets track only sections the user opens.
+const expandedExercises=new Set();
+const expandedMeals=new Set();
 
 function todayInTokyo() {
   const parts=TOKYO_DAY.formatToParts(new Date());
@@ -239,7 +243,7 @@ function drawAuth() {
   if(!ready){busy('setup-submit',true);busy('unlock-submit',true);busy('import-locked-btn',true);}
 }
 function renderEverything() {
-  foldedExercises.clear();foldedMeals.clear();
+  expandedExercises.clear();expandedMeals.clear();
   window.Nutrition?.clearSession();
   $('measure-date').value=formattedDate(new Date());
   renderHome();renderTraining();renderFood();renderProgress();renderSettings();
@@ -250,7 +254,7 @@ function unlockUI() {
   trainWeek=Math.min(7,Math.max(0,weekDifference(state.settings.start,monday(formattedDate(new Date())))));
   trainDay=new Date().getDay();trainDate=shiftDays(state.settings.start,trainWeek*7+((trainDay+6)%7));
   foodDay=new Date().getDay();foodDate=formattedDate(new Date());
-  renderEverything();navigate('home');
+  renderEverything();navigate(readLastScreen());
 }
 function resetSensitiveForms() {
   ['setup-pass','setup-confirm','unlock-pass','import-pass','import-locked-pass','change-pass','change-confirm'].forEach(id=>$(id).value='');
@@ -326,8 +330,17 @@ async function guarded(btnId,fn) {
   busy(btnId,true);
   try {await fn();}catch(err){showError(err);}finally{busy(btnId,false);}
 }
+function readLastScreen() {
+  try {
+    const screen=localStorage.getItem(LAST_SCREEN_KEY);
+    return VALID_SCREENS.includes(screen)?screen:'home';
+  } catch(err) {
+    return 'home';
+  }
+}
 function navigate(screen) {
   if(!state)return;
+  if(!VALID_SCREENS.includes(screen))screen='home';
   currentScreen=screen;
   document.querySelectorAll('.screen').forEach(s=>{s.hidden=s.id!==`screen-${screen}`;});
   document.querySelectorAll('[data-screen]').forEach(b=>b.classList.toggle('active',b.dataset.screen===(screen==='library'?'food':screen)));
@@ -337,6 +350,8 @@ function navigate(screen) {
   if(screen==='library')window.Nutrition?.renderLibrary();
   if(screen==='progress')renderProgress();
   if(screen==='settings')renderSettings();
+  // Keep the last visited page across app closures and same-day re-unlocks.
+  try{localStorage.setItem(LAST_SCREEN_KEY,screen);}catch(err){console.warn('RECOMP: last page could not be remembered',err);}
   window.scrollTo(0,0);
 }
 function currentWeek() {return Math.min(8,Math.max(1,weekDifference(state.settings.start,monday(formattedDate(new Date())))+1));}
@@ -358,7 +373,7 @@ function drawDays(id,sel,onDay) {
   for(const d of ORDER){const b=el('button','',`周${DAYS[d]}`);b.type='button';b.classList.toggle('active',d===sel);b.addEventListener('click',()=>onDay(d));container.append(b);}
 }
 // Fold by hiding the live form controls. This preserves unsaved input values.
-function makeFoldHeader(kind,title,summary,body,folded,key) {
+function makeFoldHeader(kind,title,summary,body,expanded,key) {
   const heading=el('button',kind+' fold-heading');
   heading.type='button';
   heading.setAttribute('aria-controls',body.id);
@@ -368,13 +383,13 @@ function makeFoldHeader(kind,title,summary,body,folded,key) {
   const indicator=el('span','fold-indicator');
   heading.append(headingText,indicator);
   const sync=()=>{
-    const isClosed=folded.has(key);
-    body.hidden=isClosed;
-    heading.setAttribute('aria-expanded',String(!isClosed));
-    indicator.textContent=isClosed?'展开 ▾':'收起 ▴';
+    const isOpen=expanded.has(key);
+    body.hidden=!isOpen;
+    heading.setAttribute('aria-expanded',String(isOpen));
+    indicator.textContent=isOpen?'收起 ▴':'展开 ▾';
   };
   heading.addEventListener('click',()=>{
-    if(folded.has(key))folded.delete(key);else folded.add(key);
+    if(expanded.has(key))expanded.delete(key);else expanded.add(key);
     sync();
   });
   sync();
@@ -399,7 +414,7 @@ function renderTraining() {
     const box=el('div','exercise');
     const foldBody=el('div','fold-body');foldBody.id=`train-fold-${trainDate}-${i}`;
     const key=`${trainDate}:${i}`;
-    box.append(makeFoldHeader('exercise-title',`${i+1}. ${ex[0]}`,`${ex[1]} 组 · ${ex[2]} 次`,foldBody,foldedExercises,key),foldBody);
+    box.append(makeFoldHeader('exercise-title',`${i+1}. ${ex[0]}`,`${ex[1]} 组 · ${ex[2]} 次`,foldBody,expandedExercises,key),foldBody);
     foldBody.append(el('div','exercise-meta',`${ex[2]} 次 · 休息 ${ex[3]} · RIR ${ex[4]}`));
     const prior=previousExercise(trainDate,ex[0]);
     if(prior)foldBody.append(el('div','prior',`上次：${prior}`));
@@ -451,7 +466,7 @@ function renderFood() {
     const box=el('div','meal');
     const foldBody=el('div','fold-body');foldBody.id=`meal-fold-${foodDate}-${i}`;
     const desc=foodDay===6?'全天可自行选择，不设固定菜谱。':MENU[foodDay]?.[i]||'自行搭配';
-    box.append(makeFoldHeader('meal-title',MEAL_NAMES[i],desc,foldBody,foldedMeals,`${foodDate}:${i}`),foldBody);
+    box.append(makeFoldHeader('meal-title',MEAL_NAMES[i],desc,foldBody,expandedMeals,`${foodDate}:${i}`),foldBody);
     if(i===1&&foodDay>=1&&foodDay<=5){
       const select=el('select','meal-options');select.setAttribute('aria-label','选择外食午餐');
       const opt0=el('option','', '选择常见外食（估算数据可修改）');opt0.value='';select.append(opt0);
@@ -623,6 +638,7 @@ async function purgeVault() {
   await writeQueue.catch(()=>{});
   await forgetToday();
   localStorage.removeItem(VAULT_KEY);
+  localStorage.removeItem(LAST_SCREEN_KEY);
   window.Nutrition?.clearSession();
   state=null;keyRef=null;saltRef=null;unlockedDay=null;drawAuth();notify('本机加密保险库已删除');
 }
