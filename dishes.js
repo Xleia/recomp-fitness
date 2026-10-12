@@ -162,7 +162,7 @@
   const normalize=s=>String(s||'').normalize('NFKC').toLowerCase().replace(/\s+/g,'');
   const btn=(s,handler,cls='secondary')=>{const x=node('button',cls,s);x.type='button';x.addEventListener('click',handler);return x;};
   let csvMap=null, fetchPromise=null, fetchError='';
-  let started=false, tab='foods', mode='home', activeDish=null, filterCategory='',query='',maxVisible=12;
+  let started=false, tab='foods', mode='home', activeDish=null, filterCategory='',query='',maxVisible=5;
   let draft=null, searchWrap=null, dishPanel=null, originals=[], statusEl=null, listEl=null, editorEl=null, starredEl=null;
 
   function privateLib(){
@@ -321,8 +321,8 @@
       card.append(textBox,selectButton);listEl.append(card);
     }
     const page=node('div','dish-page');
-    if(list.length>maxVisible)page.append(btn('显示更多（剩余'+(list.length-maxVisible)+'道）',()=>{maxVisible+=12;renderCards();}));
-    if(maxVisible>12)page.append(btn('↑ 收起至前12道',()=>{maxVisible=12;renderCards();listEl.scrollIntoView({block:'start',behavior:'smooth'});}));
+    if(list.length>maxVisible)page.append(btn('显示更多（剩余'+(list.length-maxVisible)+'道）',()=>{maxVisible+=5;renderCards();}));
+    if(maxVisible>5)page.append(btn('↑ 收起至前5道',()=>{maxVisible=5;renderCards();listEl.scrollIntoView({block:'start',behavior:'smooth'});}));
     listEl.append(page);
   }
   function renderFavorites(){
@@ -504,9 +504,9 @@
     const outside=btn('外食参考估算',()=>setMode('outside'),'dish-switch-btn');outside.id='dish-mode-outside';
     modes.append(home,outside);dishPanel.append(modes);
     const searchPanel=node('div','panel dish-search');
-    const search=labelField('菜名搜索（中文 / 日文）','text','',x=>{query=x.value;maxVisible=12;renderCards();});
+    const search=labelField('菜名搜索（中文 / 日文）','text','',x=>{query=x.value;maxVisible=5;renderCards();});
     search.input.placeholder='牛肉炒芹菜、辣椒炒肉、親子丼';searchPanel.append(search.label);
-    const category=selectField('菜品分类',[['','全部分类'],...Object.values(CATEGORY).map(x=>[x,x])],'',v=>{filterCategory=v;maxVisible=12;renderCards();});
+    const category=selectField('菜品分类',[['','全部分类'],...Object.values(CATEGORY).map(x=>[x,x])],'',v=>{filterCategory=v;maxVisible=5;renderCards();});
     searchPanel.append(category.label);statusEl=node('small','dish-found','');searchPanel.append(statusEl);
     const favoriteSection=node('div','dish-saved');favoriteSection.append(node('h3','','★ 收藏的菜品'));
     starredEl=node('div','dish-favorites');favoriteSection.append(starredEl);searchPanel.append(favoriteSection);
