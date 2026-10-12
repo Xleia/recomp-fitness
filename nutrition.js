@@ -66,7 +66,7 @@
   const fmt = n => (Math.round((Number(n)||0)*10)/10).toLocaleString('zh-CN',{maximumFractionDigits:1});
   const rounding = n => Math.round(n*100)/100;
   const copy = obj => structuredClone(obj);
-  let publicFoods=null, loadPromise=null, loadError='', selected=[], drafts=new Map(), mealIndex=0, resultLimit=18;
+  let publicFoods=null, loadPromise=null, loadError='', selected=[], drafts=new Map(), manualDrafts=new Map(), mealIndex=0, resultLimit=18;
 
   function library() {
     if(!state)throw Error('请先解锁私人记录');
@@ -137,6 +137,23 @@
     return drafts.get(date);
   }
   function draftTotals(date) {return totals(dayDraft(date).flat());}
+  function captureManual() {
+    if(!state || currentScreen!=='food')return;
+    const entries=[];
+    for(let i=0;i<4;i++){
+      const entry={};
+      for(const key of FIELDS){
+        const input=document.querySelector('[data-meal="'+i+'"][data-nutrient="'+key+'"]');
+        entry[key]=input?.value??'';
+      }
+      entry.note=document.querySelector('[data-meal="'+i+'"][data-nutrient="note"]')?.value??'';
+      entries.push(entry);
+    }
+    const lunch=byId('lunch-selector')?.value??'';
+    manualDrafts.set(foodDate,{entries,lunch});
+  }
+  function manualForDay(date) {return manualDrafts.get(date)||null;}
+  function savedManual(date) {manualDrafts.delete(date);}
   function collectRows(date) {
     const data=dayDraft(date);
     for(const rows of data){
@@ -151,7 +168,7 @@
   }
   function mealTotals(date,index){return totals(dayDraft(date)[index]);}
   function clearSession() {
-    drafts.clear();selected=[];mealIndex=0;resultLimit=18;
+    drafts.clear();manualDrafts.clear();selected=[];mealIndex=0;resultLimit=18;
     ['nutrition-results','nutrition-selected','nutrition-templates','nutrition-favorites'].forEach(id=>{const x=byId(id);if(x)x.replaceChildren();});
   }
   function savedDay(date){drafts.delete(date);}
@@ -304,6 +321,7 @@
     });
   }
   function openForMeal(index) {
+    captureManual();
     mealIndex=index;selected=[];byId('nutrition-meal').value=String(index);
     navigate('library');
   }
@@ -377,7 +395,7 @@
   }
   function init() {
     byId('nutrition-back').addEventListener('click',()=>navigate('food'));
-    byId('food-library-launch').addEventListener('click',()=>{selected=[];mealIndex=0;navigate('library');});
+    byId('food-library-launch').addEventListener('click',()=>{captureManual();selected=[];mealIndex=0;navigate('library');});
     byId('nutrition-query').addEventListener('input',()=>{resultLimit=18;renderResults();});
     byId('nutrition-category').addEventListener('change',()=>{resultLimit=18;renderResults();});
     byId('nutrition-meal').addEventListener('change',()=>{mealIndex=Number(byId('nutrition-meal').value);});
@@ -388,6 +406,6 @@
   const originalRenderLibrary=renderLibrary;
   window.Nutrition={
     init,renderLibrary(){originalRenderLibrary();renderCustom();},
-    renderMeals,openForMeal,draftTotals,collectRows,mealTotals,savedDay,clearSession
+    renderMeals,openForMeal,draftTotals,collectRows,mealTotals,savedDay,clearSession,manualForDay,savedManual
   };
 })();
