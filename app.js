@@ -152,6 +152,9 @@ let manualLockRequested=false;
 let unlockedDay=null;
 let authGeneration=0;
 let restoring=false;
+// UI-only accordion state; never written to the encrypted nutrition/workout records.
+const foldedExercises=new Set();
+const foldedMeals=new Set();
 
 function todayInTokyo() {
   const parts=TOKYO_DAY.formatToParts(new Date());
@@ -236,6 +239,7 @@ function drawAuth() {
   if(!ready){busy('setup-submit',true);busy('unlock-submit',true);busy('import-locked-btn',true);}
 }
 function renderEverything() {
+  foldedExercises.clear();foldedMeals.clear();
   window.Nutrition?.clearSession();
   $('measure-date').value=formattedDate(new Date());
   renderHome();renderTraining();renderFood();renderProgress();renderSettings();
@@ -353,6 +357,29 @@ function drawDays(id,sel,onDay) {
   const container=$(id);container.replaceChildren();
   for(const d of ORDER){const b=el('button','',`周${DAYS[d]}`);b.type='button';b.classList.toggle('active',d===sel);b.addEventListener('click',()=>onDay(d));container.append(b);}
 }
+// Fold by hiding the live form controls. This preserves unsaved input values.
+function makeFoldHeader(kind,title,summary,body,folded,key) {
+  const heading=el('button',kind+' fold-heading');
+  heading.type='button';
+  heading.setAttribute('aria-controls',body.id);
+  const headingText=el('span','fold-summary');
+  headingText.append(el('strong','',title));
+  if(summary)headingText.append(el('small','',summary));
+  const indicator=el('span','fold-indicator');
+  heading.append(headingText,indicator);
+  const sync=()=>{
+    const isClosed=folded.has(key);
+    body.hidden=isClosed;
+    heading.setAttribute('aria-expanded',String(!isClosed));
+    indicator.textContent=isClosed?'展开 ▾':'收起 ▴';
+  };
+  heading.addEventListener('click',()=>{
+    if(folded.has(key))folded.delete(key);else folded.add(key);
+    sync();
+  });
+  sync();
+  return heading;
+}
 function planDate(week,d) {return shiftDays(state.settings.start,week*7+((d+6)%7));}
 function renderTraining() {
   text('train-week-title',`第 ${trainWeek+1} / 8 周`);
@@ -370,18 +397,20 @@ function renderTraining() {
   let sum=0;
   plan.items.forEach((ex,i)=>{sum+=ex[1];
     const box=el('div','exercise');
-    const heading=el('div','exercise-title');heading.append(el('strong','',`${i+1}. ${ex[0]}`),el('small','',`${ex[1]} 组`));box.append(heading);
-    box.append(el('div','exercise-meta',`${ex[2]} 次 · 休息 ${ex[3]} · RIR ${ex[4]}`));
+    const foldBody=el('div','fold-body');foldBody.id=`train-fold-${trainDate}-${i}`;
+    const key=`${trainDate}:${i}`;
+    box.append(makeFoldHeader('exercise-title',`${i+1}. ${ex[0]}`,`${ex[1]} 组 · ${ex[2]} 次`,foldBody,foldedExercises,key),foldBody);
+    foldBody.append(el('div','exercise-meta',`${ex[2]} 次 · 休息 ${ex[3]} · RIR ${ex[4]}`));
     const prior=previousExercise(trainDate,ex[0]);
-    if(prior)box.append(el('div','prior',`上次：${prior}`));
-    const hdr=el('div','set-head');for(const label of ['组','重量 kg','次数','完成'])hdr.append(el('span','',label));box.append(hdr);
+    if(prior)foldBody.append(el('div','prior',`上次：${prior}`));
+    const hdr=el('div','set-head');for(const label of ['组','重量 kg','次数','完成'])hdr.append(el('span','',label));foldBody.append(hdr);
     for(let j=0;j<ex[1];j++){
       const vals=saved?.items?.[i]?.sets?.[j]||{};
       const row=el('div','set-row');row.append(el('span','',j+1));
       const weight=el('input');weight.type='number';weight.step='0.5';weight.min='0';weight.max='1000';weight.placeholder='kg';weight.value=vals.w??'';weight.dataset.field='w';weight.dataset.exercise=String(i);weight.dataset.set=String(j);weight.setAttribute('aria-label',`${ex[0]} 第${j+1}组重量`);
       const reps=el('input');reps.type='number';reps.step='1';reps.min='0';reps.max='1000';reps.placeholder='次';reps.value=vals.r??'';reps.dataset.field='r';reps.dataset.exercise=String(i);reps.dataset.set=String(j);reps.setAttribute('aria-label',`${ex[0]} 第${j+1}组次数`);
       const check=el('input');check.type='checkbox';check.checked=!!vals.done;check.dataset.field='done';check.dataset.exercise=String(i);check.dataset.set=String(j);check.setAttribute('aria-label',`${ex[0]} 第${j+1}组完成`);
-      row.append(weight,reps,check);box.append(row);
+      row.append(weight,reps,check);foldBody.append(row);
     }
     container.append(box);
   });
@@ -419,28 +448,29 @@ function renderFood() {
   const entries=manualDraft?.entries||(Array.isArray(saved.entries)?saved.entries:MEAL_NAMES.map(blankEntry));
   const container=$('meal-list');container.replaceChildren();
   for(let i=0;i<4;i++){
-    const box=el('div','meal');box.append(el('div','meal-title',MEAL_NAMES[i]));
+    const box=el('div','meal');
+    const foldBody=el('div','fold-body');foldBody.id=`meal-fold-${foodDate}-${i}`;
     const desc=foodDay===6?'全天可自行选择，不设固定菜谱。':MENU[foodDay]?.[i]||'自行搭配';
-    box.append(el('p','meal-desc',desc));
+    box.append(makeFoldHeader('meal-title',MEAL_NAMES[i],desc,foldBody,foldedMeals,`${foodDate}:${i}`),foldBody);
     if(i===1&&foodDay>=1&&foodDay<=5){
       const select=el('select','meal-options');select.setAttribute('aria-label','选择外食午餐');
       const opt0=el('option','', '选择常见外食（估算数据可修改）');opt0.value='';select.append(opt0);
       LUNCHES.forEach((m,j)=>{const option=el('option','',`${m.name} · ≈${m.kcal}kcal / ${m.protein}g蛋白`);option.value=String(j);select.append(option);});
       select.value=manualDraft?manualDraft.lunch:(Number.isInteger(saved.lunch)?String(saved.lunch):'');
-      select.id='lunch-selector';box.append(select);
+      select.id='lunch-selector';foldBody.append(select);
       const apply=el('button','small-btn','把估算值填入午餐记录');apply.type='button';apply.addEventListener('click',()=>{
         const m=LUNCHES[Number(select.value)];if(select.value===''||!m){notify('请先选择午餐',true);return;}
         for(const k of ['kcal','protein','fat','carbs'])document.querySelector(`[data-meal="1"][data-nutrient="${k}"]`).value=m[k];
         updateTotals();notify('已填入估算值，确认实际份量后再保存');
-      });box.append(apply);
+      });foldBody.append(apply);
     }
     const grid=el('div','meal-grid');
     const current=entries[i]||blankEntry();
     for(const [field,label] of [['kcal','热量 kcal'],['protein','蛋白质 g'],['fat','脂肪 g'],['carbs','碳水 g']]){
       const lab=el('label','',label);const input=el('input','meal-input');input.type='number';input.step=field==='kcal'?'1':'0.1';input.min='0';input.max='10000';input.inputMode='decimal';input.placeholder='0';input.value=current[field]??'';input.dataset.meal=String(i);input.dataset.nutrient=field;input.addEventListener('input',updateTotals);lab.append(input);grid.append(lab);
     }
-    box.append(grid);
-    const noteBox=el('label','meal-note');const note=el('input');note.type='text';note.maxLength=200;note.placeholder='食物、品牌、份量或备注（可选）';note.value=typeof current.note==='string'?current.note:'';note.dataset.meal=String(i);note.dataset.nutrient='note';noteBox.append(note);box.append(noteBox);
+    foldBody.append(grid);
+    const noteBox=el('label','meal-note');const note=el('input');note.type='text';note.maxLength=200;note.placeholder='食物、品牌、份量或备注（可选）';note.value=typeof current.note==='string'?current.note:'';note.dataset.meal=String(i);note.dataset.nutrient='note';noteBox.append(note);foldBody.append(noteBox);
     container.append(box);
   }
   window.Nutrition?.renderMeals();
