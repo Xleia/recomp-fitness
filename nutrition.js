@@ -53,6 +53,20 @@
   const ML_FACTOR = {'13003':1.03,'13005':1.03,'04052':1.01};
   const ITEM_UNITS = {'12004':[{unit:'个',label:'个（约50g可食部分）',factor:50}],'07107':[{unit:'根',label:'根（约100g去皮）',factor:100}]};
   const byId = id => document.getElementById(id);
+  function translated(food) {
+    if(!food.code)return {zh:'',complete:true};
+    return window.FoodZh?.translate(food.name,food.code,food.category)||{zh:'',complete:false};
+  }
+  function titleFor(food) {
+    const t=translated(food);
+    return t.zh || food.name;
+  }
+  function nameBlock(host,food) {
+    const t=translated(food);
+    host.append(node('strong','',t.zh||food.name));
+    if(t.zh)host.append(node('small','nutrition-japanese','日文：'+food.name+(t.complete?'':' · 部分译名待补充')));
+    else if(food.code)host.append(node('small','nutrition-japanese','日文原名 · 中文译名待补充'));
+  }
   const node = (tag, className, value) => {
     const e=document.createElement(tag);
     if(className)e.className=className;
@@ -189,7 +203,7 @@
     if(!selected.length)host.append(node('div','empty','搜索食物后点击「加入计算」，可同时计算多项食物。'));
     selected.forEach((row,i)=>{
       const wrap=node('div','nutrition-line');
-      wrap.append(node('strong','',row.name));
+      nameBlock(wrap,row);
       wrap.append(node('small','',row.source));
       const controls=node('div','nutrition-controls');
       const amount=node('input','nutrition-amount');amount.type='number';amount.inputMode='decimal';amount.min='0.1';amount.max='10000';amount.step='any';amount.value=row.amount;amount.setAttribute('aria-label',row.name+'数量');
@@ -223,18 +237,18 @@
     el.value=categories.has(prev)?prev:'';
   }
   function rank(food,q) {
-    const name=norm(food.name),alias=norm(ALIASES[food.code]||'');
+    const name=norm(food.name),alias=norm(ALIASES[food.code]||''),chinese=norm(translated(food).zh);
     if(!q)return library().favorites.includes(food.id)?-200:POPULAR.indexOf(food.code)>=0?POPULAR.indexOf(food.code)-100:100;
-    if(name===q||alias===q)return -100;
-    if(name.startsWith(q)||alias.startsWith(q))return -60;
-    return name.indexOf(q)>=0?-30:alias.indexOf(q)>=0?-20:0;
+    if(name===q||alias===q||chinese===q)return -100;
+    if(name.startsWith(q)||alias.startsWith(q)||chinese.startsWith(q))return -60;
+    return name.indexOf(q)>=0?-30:chinese.indexOf(q)>=0?-25:alias.indexOf(q)>=0?-20:0;
   }
   function renderResults() {
     const host=byId('nutrition-results');host.replaceChildren();
     const q=norm(byId('nutrition-query').value),category=byId('nutrition-category').value;
     let matches=allFoods().filter(f=>{
       if(category&&f.category!==category)return false;
-      return !q||norm(f.name).includes(q)||norm(f.category).includes(q)||norm(f.brand).includes(q)||norm(ALIASES[f.code]||'').includes(q);
+      return !q||norm(f.name).includes(q)||norm(f.category).includes(q)||norm(f.brand).includes(q)||norm(ALIASES[f.code]||'').includes(q)||norm(translated(f).zh).includes(q);
     });
     matches.sort((a,b)=>rank(a,q)-rank(b,q));
     const total=matches.length;
@@ -243,7 +257,8 @@
     if(!total){host.append(node('div','empty',publicFoods?'未找到匹配食品，可以添加自定义品牌食品。':'正在加载食物库…'));return;}
     for(const food of matches.slice(0,resultLimit)){
       const card=node('div','nutrition-result');
-      card.append(node('strong','',food.name+(food.brand?' · '+food.brand:'')));
+      nameBlock(card,food);
+      if(food.brand)card.append(node('small','',food.brand));
       card.append(node('small','',resultInfo(food)));
       card.append(node('small','',food.category+' · '+(food.code?'食品编号 '+food.code:'用户自行录入')));
       const actions=node('div','nutrition-result-actions');
@@ -254,7 +269,10 @@
       }),button('＋ 加入计算',()=>addSelection(food)));
       card.append(actions);host.append(card);
     }
-    if(total>resultLimit)host.append(button('显示更多（还剩 '+(total-resultLimit)+' 条）',()=>{resultLimit+=18;renderResults();},'secondary full'));
+    const actions=node('div','nutrition-pagination');
+    if(total>resultLimit)actions.append(button('显示更多（还剩 '+(total-resultLimit)+' 条）',()=>{resultLimit+=18;renderResults();},'secondary'));
+    if(resultLimit>18)actions.append(button('↑ 收起（仅显示前18条）',()=>{resultLimit=18;renderResults();byId('nutrition-results').scrollIntoView({block:'start',behavior:'smooth'});},'secondary'));
+    host.append(actions);
   }
   function renderFavorites() {
     const host=byId('nutrition-favorites');host.replaceChildren();
@@ -262,7 +280,7 @@
     if(!fav.length){host.append(node('small','','暂无收藏食品。'));return;}
     fav.slice(0,30).forEach(food=>{
       const line=node('div','nutrition-mini');
-      line.append(node('span','',food.name),button('加入计算',()=>addSelection(food)));
+      const label=node('span');nameBlock(label,food);line.append(label,button('加入计算',()=>addSelection(food)));
       host.append(line);
     });
   }
@@ -301,13 +319,13 @@
       current[i].forEach((row,j)=>{
         const line=node('div','nutrition-day-row');
         const info=node('div');
-        info.append(node('strong','',row.name),node('small','',row.unit+' · '+fmt(row.snap?.kcal)+' kcal'));
+        nameBlock(info,row);info.append(node('small','',row.unit+' · '+fmt(row.snap?.kcal)+' kcal'));
         const input=node('input','nutrition-day-amount');input.type='number';input.inputMode='decimal';input.step='any';input.min='0.1';input.max='10000';input.value=row.amount;
         input.setAttribute('aria-label',row.name+'数量（'+row.unit+'）');
         input.addEventListener('input',()=>{
           row.amount=input.value===''?0:Number(input.value);
           recompute(row);
-          info.querySelector('small').textContent=row.unit+' · '+fmt(row.snap.kcal)+' kcal';
+          info.lastElementChild.textContent=row.unit+' · '+fmt(row.snap.kcal)+' kcal;
           updateTotals();
         });
         input.addEventListener('change',()=>renderMeals());
