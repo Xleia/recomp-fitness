@@ -1,0 +1,69 @@
+/* RECOMP finished-dish catalog, scoped to the existing Nutrition screen. */
+#screen-library .dish-switch{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:13px 0}
+#screen-library .dish-switch-btn{border:1px solid var(--border);border-radius:11px;background:#22334a;color:#c2d1e4;padding:11px 7px;font-size:13px;font-weight:750;min-width:0;white-space:normal;line-height:1.4}
+#screen-library .dish-switch-btn.active{background:#1d4f46;border-color:#4fae91;color:#b7f8d9}
+#screen-library .dish-main{min-width:0;overflow-wrap:anywhere}
+#screen-library .dish-heading{padding:12px 2px 3px}
+#screen-library .dish-heading h2{margin:0 0 4px}
+#screen-library .dish-date,#screen-library .dish-found{display:block;color:var(--muted);margin:6px 1px;font-size:12px}
+#screen-library .dish-search .dish-field{margin:10px 0}
+#screen-library .dish-field{display:flex;flex-direction:column;gap:5px;margin:11px 0;min-width:0;font-size:12px;color:var(--muted);font-weight:650}
+#screen-library .dish-field>input,#screen-library .dish-field>select,#screen-library .dish-ingredient-row>input{width:100%;max-width:100%;min-width:0;box-sizing:border-box;padding:11px 10px;border:1px solid #40516b;border-radius:10px;background:#101b2e;color:var(--text);font-size:16px;line-height:1.35}
+#screen-library .dish-field>input:focus,#screen-library .dish-field>select:focus,#screen-library .dish-ingredient-row>input:focus{outline:2px solid var(--accent);outline-offset:1px}
+#screen-library .dish-found{padding:5px 0}
+#screen-library .dish-saved{padding-top:12px;border-top:1px solid var(--border)}
+#screen-library .dish-saved h3{font-size:13px;margin-bottom:8px}
+#screen-library .dish-favorites{display:flex;flex-wrap:wrap;gap:7px}
+#screen-library .dish-favorite-chip{background:#29425b;color:#def1ff;border:1px solid #405974;border-radius:10px;padding:7px 9px;font-size:12px}
+#screen-library .dish-detail{scroll-margin-top:16px}
+#screen-library .dish-detail-head{display:flex;justify-content:space-between;align-items:start;gap:9px;margin:8px 0 13px}
+#screen-library .dish-detail-head h2{font-size:20px;margin:0 0 3px}
+#screen-library .dish-detail-head small{display:block}
+#screen-library .dish-detail-head button{flex:0 0 auto}
+#screen-library .dish-disclaimer{display:block;color:var(--muted);font-size:12px;line-height:1.65;margin:8px 0}
+#screen-library .dish-two-cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 10px}
+#screen-library .dish-subtitle{margin:17px 0 8px;font-size:15px}
+#screen-library .dish-ingredients{border:1px solid #34465c;background:#112338;border-radius:12px;padding:0 9px;overflow:hidden}
+#screen-library .dish-ingredient-row{display:grid;grid-template-columns:minmax(0,1fr) 86px 67px 29px;gap:7px;align-items:center;padding:10px 0;border-bottom:1px solid #314258;min-width:0}
+#screen-library .dish-ingredient-row:last-child{border-bottom:0}
+#screen-library .dish-ingredient-name strong,#screen-library .dish-ingredient-name small{display:block;line-height:1.35;overflow-wrap:anywhere}
+#screen-library .dish-ingredient-name strong{font-size:12px}
+#screen-library .dish-ingredient-name small{font-size:10px;margin-top:3px}
+#screen-library .dish-ingredient-calories{font-size:11px;text-align:right}
+#screen-library .dish-ingredient-row>input{padding:8px 5px;text-align:center}
+#screen-library .dish-remove{border:0;background:#49343b;color:#ffced5;border-radius:8px;font-size:17px;min-width:29px;min-height:32px;padding:4px}
+#screen-library .dish-add-ingredient{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end;margin:9px 0 16px}
+#screen-library .dish-add-ingredient .dish-field{margin:0}
+#screen-library .dish-add-ingredient>.small-btn{min-height:43px}
+#screen-library .dish-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:12px 0}
+#screen-library .dish-metric{min-width:0;background:#243950;padding:12px;border-radius:12px}
+#screen-library .dish-metric small{display:block;margin-bottom:4px}
+#screen-library .dish-metric strong{display:block;font-size:18px;overflow-wrap:anywhere}
+#screen-library .dish-summary-hint{font-size:12px;color:var(--accent2)}
+#screen-library .dish-actions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+#screen-library .dish-actions button{font-size:12px;padding:9px 12px;flex:1 1 150px}
+#screen-library .dish-range{padding:14px;background:#1b3443;border:1px solid #35586e;border-radius:12px;text-align:center}
+#screen-library .dish-range small,#screen-library .dish-range strong{display:block}
+#screen-library .dish-range strong{font-size:26px;margin:6px 0;color:#aaf5d5;letter-spacing:-.6px}
+#screen-library .dish-center-label{display:block;text-align:center;margin:10px 0;color:var(--muted);font-size:12px}
+#screen-library .dish-result{display:flex;justify-content:space-between;align-items:center;gap:9px;padding:13px 0;border-bottom:1px solid var(--border)}
+#screen-library .dish-result-copy{min-width:0;flex:1}
+#screen-library .dish-result-copy strong,#screen-library .dish-result-copy small{display:block;overflow-wrap:anywhere}
+#screen-library .dish-result-copy strong{font-size:14px}
+#screen-library .dish-result-copy small{font-size:11px;margin-top:3px}
+#screen-library .dish-result-copy .dish-energy{color:#93f4d0}
+#screen-library .dish-result button{flex:0 0 auto;font-size:11px;padding:8px}
+#screen-library .dish-page{display:flex;flex-wrap:wrap;gap:8px;padding:15px 0 3px}
+#screen-library .dish-page button{flex:1 1 140px;font-size:12px;padding:9px}
+#screen-library .dish-detail .full{margin-top:15px}
+#screen-library .dish-main [hidden]{display:none!important}
+#screen-library input[aria-invalid="true"]{border-color:#ff959e}
+@media(max-width:390px){
+  #screen-library .dish-switch-btn{font-size:12px}
+  #screen-library .dish-ingredient-row{grid-template-columns:minmax(0,1fr) 70px 55px 27px;gap:5px}
+  #screen-library .dish-ingredient-calories{font-size:10px}
+  #screen-library .dish-ingredient-row>input{padding:8px 3px}
+  #screen-library .dish-metric{padding:10px}
+  #screen-library .dish-metric strong{font-size:17px}
+  #screen-library .dish-range strong{font-size:22px}
+}
