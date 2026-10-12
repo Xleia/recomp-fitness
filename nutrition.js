@@ -319,13 +319,22 @@
       current[i].forEach((row,j)=>{
         const line=node('div','nutrition-day-row');
         const info=node('div');
-        nameBlock(info,row);info.append(node('small','',row.unit+' · '+fmt(row.snap?.kcal)+' kcal'));
+        nameBlock(info,row);
+        if(row.dishMeta?.ja)info.append(node('small','nutrition-japanese','日文：'+row.dishMeta.ja));
+        const calorieLine=node('small','nutrition-day-calorie',row.unit+' · '+fmt(row.snap?.kcal)+' kcal');
+        info.append(calorieLine);
+        let intervalLine=null;
+        if(row.dishMeta?.mode==='outside'&&Number.isFinite(Number(row.dishMeta.lowPer100))&&Number.isFinite(Number(row.dishMeta.highPer100))){
+          const rangeText=()=>Math.round(Number(row.dishMeta.lowPer100)*Number(row.amount)/100)+'–'+Math.round(Number(row.dishMeta.highPer100)*Number(row.amount)/100)+' kcal · 外食范围';
+          intervalLine=node('small','nutrition-japanese',rangeText());info.append(intervalLine);
+        }
         const input=node('input','nutrition-day-amount');input.type='number';input.inputMode='decimal';input.step='any';input.min='0.1';input.max='10000';input.value=row.amount;
         input.setAttribute('aria-label',row.name+'数量（'+row.unit+'）');
         input.addEventListener('input',()=>{
           row.amount=input.value===''?0:Number(input.value);
           recompute(row);
-          info.lastElementChild.textContent=row.unit+' · '+fmt(row.snap.kcal)+' kcal';
+          calorieLine.textContent=row.unit+' · '+fmt(row.snap.kcal)+' kcal';
+          if(intervalLine)intervalLine.textContent=Math.round(Number(row.dishMeta.lowPer100)*row.amount/100)+'–'+Math.round(Number(row.dishMeta.highPer100)*row.amount/100)+' kcal · 外食范围';
           updateTotals();
         });
         input.addEventListener('change',()=>renderMeals());
@@ -342,6 +351,48 @@
     captureManual();
     mealIndex=index;selected=[];byId('nutrition-meal').value=String(index);
     navigate('library');
+  }
+  // One prepared dish becomes ONE foodItems record; ingredients are not duplicated.
+  // Store a nutritional snapshot in the existing encrypted daily draft.
+  function addDishToDay(item) {
+    if(!state||!item||typeof item!=='object')throw Error('请先解锁并选择菜品');
+    const index=Number(item.mealIndex),grams=Number(item.grams);
+    if(!Number.isInteger(index)||index<0||index>3)throw Error('请选择正确的餐次');
+    if(!Number.isFinite(grams)||grams<=0||grams>5000)throw Error('菜品食用重量应在1～5000g之间');
+    const name=String(item.name||'').trim().slice(0,100);
+    if(!name)throw Error('菜品名称不能为空');
+    const per100={};
+    for(const field of FIELDS){
+      const value=Number(item.per100?.[field]);
+      if(!validateMacro(value,field))throw Error('菜品的热量或营养数据超出合理范围');
+      per100[field]=value;
+    }
+    const rows=dayDraft(foodDate)[index];
+    if(rows.length>=100)throw Error('单餐最多记录100项食物');
+    const source=String(item.source||'成品菜营养估算').slice(0,140);
+    const row=recompute({id:'prepared-'+crypto.randomUUID(),code:'',name,
+      source,category:'成品菜',baseUnit:'g',per100,amount:grams,unit:'g',factor:1});
+    const m=item.meta||{};
+    const meta={id:String(m.id||'').slice(0,40),ja:String(m.ja||'').slice(0,100),
+      mode:m.mode==='outside'?'outside':'home'};
+    if(meta.mode==='outside'){
+      const low=Number(m.lowPer100),high=Number(m.highPer100);
+      if(!Number.isFinite(low)||!Number.isFinite(high)||low<0||high<low||high>1000)throw Error('外食热量范围不正确');
+      meta.lowPer100=rounding(low);
+      meta.highPer100=rounding(high);
+      meta.oil=['low','normal','high'].includes(m.oil)?m.oil:'normal';
+    }else{
+      const cooked=Number(m.yieldGrams);
+      if(Number.isFinite(cooked)&&cooked>=30&&cooked<=10000)meta.yieldGrams=cooked;
+      if(Array.isArray(m.recipe)&&m.recipe.length<=40)meta.recipe=m.recipe.map(x=>({
+        code:String(x.code||'').slice(0,30),grams:Number(x.grams)||0
+      }));
+    }
+    row.dishMeta=meta;
+    rows.push(row);
+    mealIndex=index;
+    navigate('food');
+    notify('已将菜品作为一条记录加入本日饮食，请点击「加密保存当天饮食」');
   }
   function renderLibrary() {
     if(!state)return;
@@ -424,6 +475,6 @@
   const originalRenderLibrary=renderLibrary;
   window.Nutrition={
     init,renderLibrary(){originalRenderLibrary();renderCustom();},
-    renderMeals,openForMeal,draftTotals,collectRows,mealTotals,savedDay,clearSession,manualForDay,savedManual
+    renderMeals,openForMeal,draftTotals,collectRows,mealTotals,savedDay,clearSession,manualForDay,savedManual,addDishToDay
   };
 })();
