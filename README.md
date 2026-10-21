@@ -82,3 +82,9 @@ node --test tests/*.test.cjs
 
 
 导出 JSON 的 `records` 是完整记录数组，`workouts` 是同一批记录的兼容字典视图，不应重复累计。`completed_set_count` 只统计 `done === true`；与普通记录日期/动作逐组内容完全一致的 `legacy-*` 迁移副本会列在 `excluded_legacy_duplicate_keys`，保留原始 JSON，但不计总组数、不重复生成 CSV 逐组行；旧摘要始终不计总量。
+
+## 独立训练计划（F02）
+
+当前四分化训练模板完整迁移至 `plans/default-plan.json`；页面通过 `training-plans.js` 统一校验、读取和渲染，支持可选逐周覆盖。格式及字段限制见 [训练计划格式](docs/training-plan-format.md)。默认 JSON 与解析脚本纳入离线缓存，加载失败可在训练页重试。
+
+训练模板和实际记录分离。已保存日期按原记录的动作和组数回显；旧记录不补造计划关联，新记录保存计划 ID / 版本 / 当时执行配置快照。实际输入与快照分开，建议重量不填入实际重量。保存写入失败不会提交内存更改。原版星期安排、四分化动作及数量通过迁移一致性测试核对。
