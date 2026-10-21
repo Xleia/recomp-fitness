@@ -1,0 +1,454 @@
+{
+  "format": "recomp-training-plan",
+  "schema_version": 1,
+  "plan_id": "recomp-default",
+  "plan_version": "1.0.0",
+  "name": "RECOMP 四分化与篮球 · 8周",
+  "goal": "增肌与体脂管理",
+  "duration_weeks": 8,
+  "description": "从原版 RECOMP 完整迁移；训练日期、动作、组数、顺序和建议保持一致。",
+  "week_advice": [
+    "第1周：熟悉动作与配重，维持 RIR 3 左右。",
+    "第2周：继续校准重量，优先提高动作稳定性。",
+    "第3周：逐步增加重复次数，主观保留 1–2 次。",
+    "第4周：在动作规范前提下小幅加重。",
+    "第5周：根据疲劳情况将工作组减少约 40%–50%。",
+    "第6周：恢复正常训练量，重新渐进。",
+    "第7周：争取重复次数或重量上的小幅进步。",
+    "第8周：复测主要力量动作、体重与腰围趋势。"
+  ],
+  "days": [
+    {
+      "weekday": 1,
+      "day_id": "day-1",
+      "name": "腿＋小腿",
+      "type": "strength",
+      "muscle_groups": [
+        "腿",
+        "小腿"
+      ],
+      "description": "深蹲与髋铰链优先；篮球后疲劳明显时减少工作组。",
+      "home_description": "深蹲与髋铰链优先；篮球后疲劳明显时减少工作组。",
+      "exercises": [
+        {
+          "exercise_id": "day-1-exercise-1",
+          "name": "杠铃深蹲",
+          "order": 1,
+          "sets": 3,
+          "reps": {
+            "min": 6,
+            "max": 10
+          },
+          "rest_seconds": 180,
+          "rir": {
+            "min": 2,
+            "max": 3
+          }
+        },
+        {
+          "exercise_id": "day-1-exercise-2",
+          "name": "罗马尼亚硬拉",
+          "order": 2,
+          "sets": 3,
+          "reps": {
+            "min": 8,
+            "max": 10
+          },
+          "rest_seconds": {
+            "min": 120,
+            "max": 180
+          },
+          "rir": 2
+        },
+        {
+          "exercise_id": "day-1-exercise-3",
+          "name": "腿举机",
+          "order": 3,
+          "sets": 3,
+          "reps": {
+            "min": 10,
+            "max": 12
+          },
+          "rest_seconds": 120,
+          "rir": 2
+        },
+        {
+          "exercise_id": "day-1-exercise-4",
+          "name": "腿弯举",
+          "order": 4,
+          "sets": 3,
+          "reps": {
+            "min": 10,
+            "max": 15
+          },
+          "rest_seconds": 90,
+          "rir": {
+            "min": 1,
+            "max": 2
+          }
+        },
+        {
+          "exercise_id": "day-1-exercise-5",
+          "name": "站姿提踵",
+          "order": 5,
+          "sets": 3,
+          "reps": {
+            "min": 12,
+            "max": 20
+          },
+          "rest_seconds": {
+            "min": 60,
+            "max": 90
+          },
+          "rir": {
+            "min": 1,
+            "max": 2
+          }
+        }
+      ]
+    },
+    {
+      "weekday": 2,
+      "day_id": "day-2",
+      "name": "休息与恢复",
+      "type": "rest",
+      "muscle_groups": [],
+      "description": "无正式力量训练，允许轻松步行。",
+      "home_description": "保证睡眠与日常活动，安排恢复。",
+      "exercises": []
+    },
+    {
+      "weekday": 3,
+      "day_id": "day-3",
+      "name": "胸＋三头＋侧肩",
+      "type": "strength",
+      "muscle_groups": [
+        "胸",
+        "三头",
+        "侧肩"
+      ],
+      "description": "先胸部复合推举，再做三头与肩中束。",
+      "home_description": "先胸部复合推举，再做三头与肩中束。",
+      "exercises": [
+        {
+          "exercise_id": "day-3-exercise-1",
+          "name": "杠铃卧推",
+          "order": 1,
+          "sets": 3,
+          "reps": {
+            "min": 6,
+            "max": 10
+          },
+          "rest_seconds": 180,
+          "rir": 2
+        },
+        {
+          "exercise_id": "day-3-exercise-2",
+          "name": "上斜哑铃卧推",
+          "order": 2,
+          "sets": 3,
+          "reps": {
+            "min": 8,
+            "max": 12
+          },
+          "rest_seconds": 120,
+          "rir": 2
+        },
+        {
+          "exercise_id": "day-3-exercise-3",
+          "name": "绳索夹胸",
+          "order": 3,
+          "sets": 3,
+          "reps": {
+            "min": 10,
+            "max": 15
+          },
+          "rest_seconds": 90,
+          "rir": {
+            "min": 1,
+            "max": 2
+          }
+        },
+        {
+          "exercise_id": "day-3-exercise-4",
+          "name": "绳索三头下压",
+          "order": 4,
+          "sets": 3,
+          "reps": {
+            "min": 10,
+            "max": 15
+          },
+          "rest_seconds": 90,
+          "rir": {
+            "min": 1,
+            "max": 2
+          }
+        },
+        {
+          "exercise_id": "day-3-exercise-5",
+          "name": "过顶绳索臂屈伸",
+          "order": 5,
+          "sets": 2,
+          "reps": {
+            "min": 10,
+            "max": 15
+          },
+          "rest_seconds": 90,
+          "rir": {
+            "min": 1,
+            "max": 2
+          }
+        },
+        {
+          "exercise_id": "day-3-exercise-6",
+          "name": "哑铃侧平举",
+          "order": 6,
+          "sets": 2,
+          "reps": {
+            "min": 12,
+            "max": 20
+          },
+          "rest_seconds": 60,
+          "rir": {
+            "min": 1,
+            "max": 2
+          }
+        }
+      ]
+    },
+    {
+      "weekday": 4,
+      "day_id": "day-4",
+      "name": "背＋二头",
+      "type": "strength",
+      "muscle_groups": [
+        "背",
+        "二头"
+      ],
+      "description": "兼顾垂直拉与水平拉。保持核心稳定，避免借力。",
+      "home_description": "兼顾垂直拉与水平拉。保持核心稳定，避免借力。",
+      "exercises": [
+        {
+          "exercise_id": "day-4-exercise-1",
+          "name": "辅助引体向上",
+          "order": 1,
+          "sets": 3,
+          "reps": {
+            "min": 6,
+            "max": 10
+          },
+          "rest_seconds": {
+            "min": 120,
+            "max": 180
+          },
+          "rir": 2
+        },
+        {
+          "exercise_id": "day-4-exercise-2",
+          "name": "胸托哑铃划船",
+          "order": 2,
+          "sets": 3,
+          "reps": {
+            "min": 8,
+            "max": 12
+          },
+          "rest_seconds": 120,
+          "rir": 2
+        },
+        {
+          "exercise_id": "day-4-exercise-3",
+          "name": "单臂绳索划船",
+          "order": 3,
+          "sets": 3,
+          "reps": {
+            "min": 10,
+            "max": 12
+          },
+          "rest_seconds": 90,
+          "rir": {
+            "min": 1,
+            "max": 2
+          }
+        },
+        {
+          "exercise_id": "day-4-exercise-4",
+          "name": "绳索直臂下拉",
+          "order": 4,
+          "sets": 2,
+          "reps": {
+            "min": 12,
+            "max": 15
+          },
+          "rest_seconds": 90,
+          "rir": {
+            "min": 1,
+            "max": 2
+          }
+        },
+        {
+          "exercise_id": "day-4-exercise-5",
+          "name": "哑铃弯举",
+          "order": 5,
+          "sets": 3,
+          "reps": {
+            "min": 8,
+            "max": 12
+          },
+          "rest_seconds": 90,
+          "rir": {
+            "min": 1,
+            "max": 2
+          }
+        },
+        {
+          "exercise_id": "day-4-exercise-6",
+          "name": "锤式弯举",
+          "order": 6,
+          "sets": 2,
+          "reps": {
+            "min": 10,
+            "max": 15
+          },
+          "rest_seconds": {
+            "min": 60,
+            "max": 90
+          },
+          "rir": {
+            "min": 1,
+            "max": 2
+          }
+        }
+      ]
+    },
+    {
+      "weekday": 5,
+      "day_id": "day-5",
+      "name": "肩＋核心＋胸部补充",
+      "type": "strength",
+      "muscle_groups": [
+        "肩",
+        "核心",
+        "胸"
+      ],
+      "description": "侧束与后束优先；若肩部未恢复，减少肩推或胸部补充量。",
+      "home_description": "侧束与后束优先；若肩部未恢复，减少肩推或胸部补充量。",
+      "exercises": [
+        {
+          "exercise_id": "day-5-exercise-1",
+          "name": "坐姿哑铃肩推",
+          "order": 1,
+          "sets": 2,
+          "reps": {
+            "min": 8,
+            "max": 12
+          },
+          "rest_seconds": 120,
+          "rir": {
+            "min": 2,
+            "max": 3
+          }
+        },
+        {
+          "exercise_id": "day-5-exercise-2",
+          "name": "绳索侧平举",
+          "order": 2,
+          "sets": 3,
+          "reps": {
+            "min": 12,
+            "max": 20
+          },
+          "rest_seconds": {
+            "min": 60,
+            "max": 90
+          },
+          "rir": {
+            "min": 1,
+            "max": 2
+          }
+        },
+        {
+          "exercise_id": "day-5-exercise-3",
+          "name": "反向飞鸟",
+          "order": 3,
+          "sets": 3,
+          "reps": {
+            "min": 12,
+            "max": 20
+          },
+          "rest_seconds": {
+            "min": 60,
+            "max": 90
+          },
+          "rir": {
+            "min": 1,
+            "max": 2
+          }
+        },
+        {
+          "exercise_id": "day-5-exercise-4",
+          "name": "器械推胸",
+          "order": 4,
+          "sets": 2,
+          "reps": {
+            "min": 10,
+            "max": 15
+          },
+          "rest_seconds": 120,
+          "rir": 2
+        },
+        {
+          "exercise_id": "day-5-exercise-5",
+          "name": "绳索卷腹",
+          "order": 5,
+          "sets": 3,
+          "reps": {
+            "min": 10,
+            "max": 15
+          },
+          "rest_seconds": 60,
+          "rir": {
+            "min": 1,
+            "max": 2
+          }
+        },
+        {
+          "exercise_id": "day-5-exercise-6",
+          "name": "Pallof Press",
+          "order": 6,
+          "sets": 2,
+          "reps": {
+            "min": 10,
+            "max": 12,
+            "per_side": true
+          },
+          "rest_seconds": 60,
+          "rir": {
+            "min": 2,
+            "max": 3
+          }
+        }
+      ]
+    },
+    {
+      "weekday": 6,
+      "day_id": "day-6",
+      "name": "篮球／自由饮食",
+      "type": "basketball",
+      "muscle_groups": [],
+      "description": "篮球约4小时：按实际强度补水补糖，注意恢复。",
+      "home_description": "篮球时注意能量补给；全天自由饮食无需暴食。",
+      "exercises": [],
+      "duration_minutes": 240
+    },
+    {
+      "weekday": 0,
+      "day_id": "day-0",
+      "name": "休息与恢复",
+      "type": "rest",
+      "muscle_groups": [],
+      "description": "无正式力量训练，允许轻松步行。",
+      "home_description": "保证睡眠与日常活动，安排恢复。",
+      "exercises": []
+    }
+  ]
+}

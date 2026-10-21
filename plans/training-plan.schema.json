@@ -1,0 +1,357 @@
+{
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "recomp-training-plan"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "plan_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]*$"
+    },
+    "plan_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": ".*\\S.*"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "pattern": ".*\\S.*"
+    },
+    "goal": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500,
+      "pattern": ".*\\S.*"
+    },
+    "duration_weeks": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 104
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 3000,
+      "pattern": ".*\\S.*"
+    },
+    "week_advice": {
+      "type": "array",
+      "maxItems": 104,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200,
+        "pattern": ".*\\S.*"
+      }
+    },
+    "days": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "items": {
+        "$ref": "#/$defs/day"
+      }
+    },
+    "weeks": {
+      "type": "array",
+      "maxItems": 104,
+      "items": {
+        "type": "object",
+        "properties": {
+          "week": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 104
+          },
+          "days": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 7,
+            "items": {
+              "$ref": "#/$defs/day"
+            }
+          }
+        },
+        "required": [
+          "week",
+          "days"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "format",
+    "schema_version",
+    "plan_id",
+    "plan_version",
+    "name",
+    "goal",
+    "duration_weeks",
+    "days"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://xleia.github.io/recomp-fitness/plans/training-plan.schema.json",
+  "title": "RECOMP Training Plan v1",
+  "$comment": "Runtime additionally checks unique weekdays/IDs/orders, min<=max, strength/rest action counts and override week bounds.",
+  "$defs": {
+    "exercise": {
+      "type": "object",
+      "properties": {
+        "exercise_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]*$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": ".*\\S.*"
+        },
+        "order": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 40
+        },
+        "sets": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20
+        },
+        "reps": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000
+            },
+            {
+              "type": "object",
+              "properties": {
+                "min": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 1000
+                },
+                "max": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 1000
+                },
+                "per_side": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "min",
+                "max"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "rest_seconds": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 3600
+            },
+            {
+              "type": "object",
+              "properties": {
+                "min": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 3600
+                },
+                "max": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 3600
+                }
+              },
+              "required": [
+                "min",
+                "max"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "planned_weight_kg": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "rir": {
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 20
+            },
+            {
+              "type": "object",
+              "properties": {
+                "min": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 20
+                },
+                "max": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 20
+                }
+              },
+              "required": [
+                "min",
+                "max"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "rpe": {
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 10
+            },
+            {
+              "type": "object",
+              "properties": {
+                "min": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 10
+                },
+                "max": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 10
+                }
+              },
+              "required": [
+                "min",
+                "max"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": ".*\\S.*"
+        },
+        "alternatives": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": ".*\\S.*"
+          }
+        }
+      },
+      "required": [
+        "exercise_id",
+        "name",
+        "order",
+        "sets",
+        "reps",
+        "rest_seconds"
+      ],
+      "additionalProperties": false
+    },
+    "day": {
+      "type": "object",
+      "properties": {
+        "weekday": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 6
+        },
+        "day_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]*$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": ".*\\S.*"
+        },
+        "type": {
+          "enum": [
+            "strength",
+            "basketball",
+            "cardio",
+            "rest"
+          ]
+        },
+        "muscle_groups": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": ".*\\S.*"
+          }
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": ".*\\S.*"
+        },
+        "home_description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": ".*\\S.*"
+        },
+        "duration_minutes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1440
+        },
+        "exercises": {
+          "type": "array",
+          "maxItems": 40,
+          "items": {
+            "$ref": "#/$defs/exercise"
+          }
+        }
+      },
+      "required": [
+        "weekday",
+        "day_id",
+        "name",
+        "type",
+        "muscle_groups",
+        "exercises"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

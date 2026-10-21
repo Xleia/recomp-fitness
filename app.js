@@ -18,23 +18,6 @@ const decoder = new TextDecoder();
 const DAYS = ['日', '一', '二', '三', '四', '五', '六'];
 const ORDER = [1,2,3,4,5,6,0];
 const MEAL_NAMES = ['早餐', '午餐', '加餐 / 运动补给', '晚餐'];
-const EXERCISES = {
-  1: {title:'腿＋小腿',desc:'深蹲与髋铰链优先；篮球后疲劳明显时减少工作组。',items:[
-    ['杠铃深蹲',3,'6–10','3分钟','2–3'],['罗马尼亚硬拉',3,'8–10','2–3分钟','2'],
-    ['腿举机',3,'10–12','2分钟','2'],['腿弯举',3,'10–15','90秒','1–2'],['站姿提踵',3,'12–20','60–90秒','1–2']]},
-  3: {title:'胸＋三头＋侧肩',desc:'先胸部复合推举，再做三头与肩中束。',items:[
-    ['杠铃卧推',3,'6–10','3分钟','2'],['上斜哑铃卧推',3,'8–12','2分钟','2'],
-    ['绳索夹胸',3,'10–15','90秒','1–2'],['绳索三头下压',3,'10–15','90秒','1–2'],
-    ['过顶绳索臂屈伸',2,'10–15','90秒','1–2'],['哑铃侧平举',2,'12–20','60秒','1–2']]},
-  4: {title:'背＋二头',desc:'兼顾垂直拉与水平拉。保持核心稳定，避免借力。',items:[
-    ['辅助引体向上',3,'6–10','2–3分钟','2'],['胸托哑铃划船',3,'8–12','2分钟','2'],
-    ['单臂绳索划船',3,'10–12','90秒','1–2'],['绳索直臂下拉',2,'12–15','90秒','1–2'],
-    ['哑铃弯举',3,'8–12','90秒','1–2'],['锤式弯举',2,'10–15','60–90秒','1–2']]},
-  5: {title:'肩＋核心＋胸部补充',desc:'侧束与后束优先；若肩部未恢复，减少肩推或胸部补充量。',items:[
-    ['坐姿哑铃肩推',2,'8–12','2分钟','2–3'],['绳索侧平举',3,'12–20','60–90秒','1–2'],
-    ['反向飞鸟',3,'12–20','60–90秒','1–2'],['器械推胸',2,'10–15','2分钟','2'],
-    ['绳索卷腹',3,'10–15','60秒','1–2'],['Pallof Press',2,'每侧10–12','60秒','2–3']]}
-};
 const LUNCHES = [
   {name:'猪肉蔬菜定食（图片款）',kcal:780,protein:38,fat:29,carbs:85},
   {name:'卤肉饭＋卤蛋＋蔬菜',kcal:820,protein:30,fat:36,carbs:94},
@@ -53,17 +36,6 @@ const MENU = {
   5:['燕麦75g、牛奶250ml、鸡蛋100g、香蕉120g','工作日外食，自由选择定食/饭/面','高蛋白酸奶250g、坚果15g、苹果150g','熟米饭220g、瘦牛肉140g、豆腐150g、蔬菜250g、油5g'],
   0:['燕麦50g、牛奶250ml、鸡蛋100g、苹果150g','熟米饭180g、鸡胸肉180g、蔬菜250g、油10g','高蛋白酸奶200g、坚果15g','土豆300g、三文鱼140g、豆腐200g、蔬菜250g、油5g']
 };
-const WEEK_ADVICE = [
-  '第1周：熟悉动作与配重，维持 RIR 3 左右。',
-  '第2周：继续校准重量，优先提高动作稳定性。',
-  '第3周：逐步增加重复次数，主观保留 1–2 次。',
-  '第4周：在动作规范前提下小幅加重。',
-  '第5周：根据疲劳情况将工作组减少约 40%–50%。',
-  '第6周：恢复正常训练量，重新渐进。',
-  '第7周：争取重复次数或重量上的小幅进步。',
-  '第8周：复测主要力量动作、体重与腰围趋势。'
-];
-
 const $ = id => document.getElementById(id);
 const text = (id, value) => {$(id).textContent = String(value);};
 const hide = (id, hidden=true) => {$(id).hidden = hidden;};
@@ -157,6 +129,7 @@ let authGeneration=0;
 let restoring=false;
 // UI-only accordion state; never written to the encrypted nutrition/workout records.
 // The default is collapsed. These sets track only sections the user opens.
+let renderedWorkout=null;
 const expandedExercises=new Set();
 const expandedMeals=new Set();
 
@@ -251,7 +224,7 @@ function renderEverything() {
 function unlockUI() {
   unlockedDay=todayInTokyo();
   hide('auth');hide('app',false);hide('nav',false);hide('lock-btn',false);
-  trainWeek=Math.min(7,Math.max(0,weekDifference(state.settings.start,monday(formattedDate(new Date())))));
+  trainWeek=Math.min(planLength()-1,Math.max(0,weekDifference(state.settings.start,monday(formattedDate(new Date())))));
   trainDay=new Date().getDay();trainDate=shiftDays(state.settings.start,trainWeek*7+((trainDay+6)%7));
   foodDay=new Date().getDay();foodDate=formattedDate(new Date());
   renderEverything();navigate(readLastScreen());
@@ -268,7 +241,7 @@ async function lock(forgetRememberedKey=false) {
     await writeQueue.catch(()=>{});
     if(manualLockRequested)await forgetToday();
   }finally{
-    keyRef=null;saltRef=null;state=null;unlockedDay=null;
+    keyRef=null;saltRef=null;state=null;unlockedDay=null;renderedWorkout=null;
     resetSensitiveForms();
     window.Nutrition?.clearSession();
     hide('app');hide('nav');hide('lock-btn');
@@ -354,19 +327,27 @@ function navigate(screen) {
   try{localStorage.setItem(LAST_SCREEN_KEY,screen);}catch(err){console.warn('RECOMP: last page could not be remembered',err);}
   window.scrollTo(0,0);
 }
-function currentWeek() {return Math.min(8,Math.max(1,weekDifference(state.settings.start,monday(formattedDate(new Date())))+1));}
-function planTitle(d) {return EXERCISES[d]?.title||(d===6?'篮球／自由饮食':'休息与恢复');}
+function activePlan() {return window.RecompPlans.getDefault();}
+function planLength() {return activePlan()?.duration_weeks || 8;}
+function currentWeek() {return Math.min(planLength(),Math.max(1,weekDifference(state.settings.start,monday(formattedDate(new Date())))+1));}
+function trainingDay(d,week=trainWeek+1) {return window.RecompPlans.dayFor(activePlan(),d,week);}
+function planTitle(d,week=currentWeek()) {return trainingDay(d,week)?.name || '训练计划未就绪';}
+async function loadTrainingPlan() {
+  try {await window.RecompPlans.loadDefault();}catch(error){showError(error);}
+  if(state){renderHome();renderTraining();}
+}
 function dayTarget(d) {return d===6?state.settings.free:[0,2].includes(d)?state.settings.rest:state.settings.train;}
 function latest(field) {const v=state.measurements.filter(m=>Number(m[field])>0).sort((a,b)=>b.date.localeCompare(a.date));return v.length?v[0][field]:null;}
 function renderHome() {
   const d=new Date().getDay();
+  const day=trainingDay(d,currentWeek());
   text('today-label',`${formattedDate(new Date())} · 周${DAYS[d]} · 训练与营养计划`);
   text('stat-weight',latest('weight')??'—');text('stat-waist',latest('waist')??'—');
   text('stat-week',currentWeek());text('stat-protein',state.settings.protein);
-  text('today-pill',EXERCISES[d]?'力量日':d===6?'篮球日':'恢复日');
-  text('today-training',planTitle(d));text('today-description',EXERCISES[d]?.desc||(d===6?'篮球时注意能量补给；全天自由饮食无需暴食。':'保证睡眠与日常活动，安排恢复。'));
+  text('today-pill',day?({strength:'力量日',basketball:'篮球日',cardio:'有氧日',rest:'恢复日'}[day.type]):'计划未就绪');
+  text('today-training',planTitle(d));text('today-description',day?.home_description || day?.description || '请在训练页面重试加载默认计划。');
   text('today-calories',dayTarget(d).toLocaleString());
-  text('week-advice',WEEK_ADVICE[currentWeek()-1]);
+  text('week-advice',activePlan()?.week_advice?.[currentWeek()-1] || '按当前计划安排训练与恢复。');
 }
 function drawDays(id,sel,onDay) {
   const container=$(id);container.replaceChildren();
@@ -397,35 +378,50 @@ function makeFoldHeader(kind,title,summary,body,expanded,key) {
 }
 function planDate(week,d) {return shiftDays(state.settings.start,week*7+((d+6)%7));}
 function renderTraining() {
-  text('train-week-title',`第 ${trainWeek+1} / 8 周`);
+  const api=window.RecompPlans,plan=activePlan();
+  trainWeek=Math.max(0,Math.min(planLength()-1,trainWeek));
+  const day=trainingDay(trainDay),saved=state.workouts[trainDate];
+  const actual=saved && Array.isArray(saved.items) ? structuredClone(saved) : null;
+  text('train-week-title',`第 ${trainWeek+1} / ${planLength()} 周`);
   text('train-week-range',`${shiftDays(state.settings.start,trainWeek*7)} — ${shiftDays(state.settings.start,trainWeek*7+6)}`);
-  busy('week-prev',trainWeek===0);busy('week-next',trainWeek===7);
+  busy('week-prev',trainWeek===0);busy('week-next',trainWeek===planLength()-1);
   drawDays('train-days',trainDay,d=>{trainDay=d;trainDate=planDate(trainWeek,d);renderTraining();});
-  text('train-title',`周${DAYS[trainDay]} · ${planTitle(trainDay)}`);
-  text('train-note',EXERCISES[trainDay]?.desc||(trainDay===6?'篮球约4小时：按实际强度补水补糖，注意恢复。':'无正式力量训练，允许轻松步行。'));
+  text('current-plan-label',plan?`${plan.name} · v${plan.plan_version}`:'默认计划尚未加载');
+  text('plan-load-status',api.getError()?'默认计划加载失败。历史记录仍可读取，请联网重试。':'');
+  hide('plan-retry',!api.getError());
+  text('train-title',`周${DAYS[trainDay]} · ${actual?(actual.title || actual.plan_snapshot?.day?.name || '已保存训练（未记录计划名称）'):(day?.name || '训练计划未就绪')}`);
+  text('train-note',actual?'正在查看已保存记录，动作和组数来自该记录；保存时仅更新你填写的实际数据。':(day?.description || '计划尚未就绪，可重试加载；已有训练记录不受影响。'));
   $('workout-date').value=trainDate;
   const container=$('workout-list');container.replaceChildren();
-  const plan=EXERCISES[trainDay];
-  hide('save-workout',!plan);
-  if(!plan){container.append(el('div','empty','今天不需要填写力量工作组。'));text('train-count','恢复 / 篮球');return;}
-  const saved=state.workouts[trainDate];
+  const items=actual?actual.items.map((item,i)=>{
+    const snap=actual.plan_snapshot?.day?.exercises;
+    const ex=Array.isArray(snap)?(snap.find(x=>x.exercise_id===item.exercise_id)||snap[i]):null;
+    return {...(ex || {}),name:item.name,sets:Array.isArray(item.sets)?item.sets.length:0};
+  }):(day?.exercises || []).slice().sort((a,b)=>a.order-b.order);
+  renderedWorkout={date:trainDate,day:trainDay,week:trainWeek+1,plan,template:day,actual,items,original:JSON.stringify(saved)};
+  hide('save-workout',!items.length);
+  if(!items.length){container.append(el('div','empty',day?.type==='rest'?'今天不需要填写力量工作组。':actual?'此条记录没有动作组。':'今天没有可填写的动作组。'));text('train-count',day?.name || '计划未就绪');return;}
   let sum=0;
-  plan.items.forEach((ex,i)=>{sum+=ex[1];
+  items.forEach((ex,i)=>{sum+=ex.sets;
+    const reps=api.displayRange(ex.reps),rest=api.restLabel(ex.rest_seconds);
+    const meta=[reps?`${reps} 次`:null,rest?`休息 ${rest}`:null,ex.rir!==undefined?`RIR ${api.displayRange(ex.rir)}`:null,ex.rpe!==undefined?`RPE ${api.displayRange(ex.rpe)}`:null].filter(Boolean).join(' · ');
     const box=el('div','exercise');
     const foldBody=el('div','fold-body');foldBody.id=`train-fold-${trainDate}-${i}`;
     const key=`${trainDate}:${i}`;
-    box.append(makeFoldHeader('exercise-title',`${i+1}. ${ex[0]}`,`${ex[1]} 组 · ${ex[2]} 次`,foldBody,expandedExercises,key),foldBody);
-    foldBody.append(el('div','exercise-meta',`${ex[2]} 次 · 休息 ${ex[3]} · RIR ${ex[4]}`));
-    const prior=previousExercise(trainDate,ex[0]);
+    box.append(makeFoldHeader('exercise-title',`${i+1}. ${ex.name}`,`${ex.sets} 组${reps?' · '+reps+' 次':''}`,foldBody,expandedExercises,key),foldBody);
+    if(meta)foldBody.append(el('div','exercise-meta',meta));
+    if(ex.description)foldBody.append(el('p','',ex.description));
+    if(ex.alternatives?.length)foldBody.append(el('p','',`替代动作：${ex.alternatives.join(' / ')}`));
+    const prior=previousExercise(trainDate,ex.name);
     if(prior)foldBody.append(el('div','prior',`上次：${prior}`));
     const hdr=el('div','set-head');for(const label of ['组','重量 kg','次数','完成'])hdr.append(el('span','',label));foldBody.append(hdr);
-    for(let j=0;j<ex[1];j++){
-      const vals=saved?.items?.[i]?.sets?.[j]||{};
+    for(let j=0;j<ex.sets;j++){
+      const vals=actual?.items?.[i]?.sets?.[j]||{};
       const row=el('div','set-row');row.append(el('span','',j+1));
-      const weight=el('input');weight.type='number';weight.step='0.5';weight.min='0';weight.max='1000';weight.placeholder='kg';weight.value=vals.w??'';weight.dataset.field='w';weight.dataset.exercise=String(i);weight.dataset.set=String(j);weight.setAttribute('aria-label',`${ex[0]} 第${j+1}组重量`);
-      const reps=el('input');reps.type='number';reps.step='1';reps.min='0';reps.max='1000';reps.placeholder='次';reps.value=vals.r??'';reps.dataset.field='r';reps.dataset.exercise=String(i);reps.dataset.set=String(j);reps.setAttribute('aria-label',`${ex[0]} 第${j+1}组次数`);
-      const check=el('input');check.type='checkbox';check.checked=!!vals.done;check.dataset.field='done';check.dataset.exercise=String(i);check.dataset.set=String(j);check.setAttribute('aria-label',`${ex[0]} 第${j+1}组完成`);
-      row.append(weight,reps,check);foldBody.append(row);
+      const weight=el('input');weight.type='number';weight.step='0.5';weight.min='0';weight.max='1000';weight.placeholder='kg';weight.value=vals.w??'';weight.dataset.field='w';weight.dataset.exercise=String(i);weight.dataset.set=String(j);weight.setAttribute('aria-label',`${ex.name} 第${j+1}组重量`);
+      const repsInput=el('input');repsInput.type='number';repsInput.step='1';repsInput.min='0';repsInput.max='1000';repsInput.placeholder='次';repsInput.value=vals.r??'';repsInput.dataset.field='r';repsInput.dataset.exercise=String(i);repsInput.dataset.set=String(j);repsInput.setAttribute('aria-label',`${ex.name} 第${j+1}组次数`);
+      const check=el('input');check.type='checkbox';check.checked=vals.done===true;check.dataset.field='done';check.dataset.exercise=String(i);check.dataset.set=String(j);check.setAttribute('aria-label',`${ex.name} 第${j+1}组完成`);
+      row.append(weight,repsInput,check);foldBody.append(row);
     }
     container.append(box);
   });
@@ -433,22 +429,42 @@ function renderTraining() {
 }
 function previousExercise(date,name) {
   const arr=Object.values(state.workouts).filter(w=>w&&w.date<date&&Array.isArray(w.items)).sort((a,b)=>b.date.localeCompare(a.date));
-  for(const w of arr){const found=w.items.find(x=>x.name===name);if(found){const done=found.sets?.filter(x=>x.done);if(done?.length)return done.map(z=>`${z.w}kg×${z.r}`).slice(0,3).join(' / ');}}
+  for(const w of arr){const found=w.items.find(x=>x.name===name);if(found){const done=found.sets?.filter(x=>x.done===true);if(done?.length)return done.map(z=>`${z.w}kg×${z.r}`).slice(0,3).join(' / ');}}
   return null;
 }
+// Commit additive changes only after encryption and storage succeed. A failed write leaves memory and disk untouched.
+function commitStateChange(change) {
+  if(!state||!keyRef||!saltRef||locking)return Promise.reject(Error('请先解锁保险库'));
+  const key=keyRef,salt=saltRef,generation=authGeneration;
+  const operation=writeQueue.catch(()=>{}).then(async()=>{
+    if(!state||keyRef!==key||authGeneration!==generation||locking)throw Error('保险库已锁定或切换，未保存更改');
+    const before=JSON.stringify(state),candidate=structuredClone(state);change(candidate);
+    const env=await seal(candidate,key,salt);
+    if(!state||keyRef!==key||authGeneration!==generation||locking||JSON.stringify(state)!==before)throw Error('数据已改变，请重新操作；原记录保持不变');
+    localStorage.setItem(VAULT_KEY,JSON.stringify(env));state=candidate;
+  });
+  writeQueue=operation;return operation;
+}
 async function saveWorkout() {
-  const p=EXERCISES[trainDay];if(!p)throw Error('当天没有力量训练');
-  const date=$('workout-date').value;
-  if(!/^\d{4}-\d\d-\d\d$/.test(date))throw Error('请选择有效训练日期');
-  if(weekday(date)!==trainDay)throw Error('训练日期与所选星期不一致，请先调整日期');
-  const items=p.items.map((ex,i)=>({name:ex[0],sets:Array.from({length:ex[1]},(_,j)=>{
-    const f=k=>document.querySelector(`[data-exercise="${i}"][data-set="${j}"][data-field="${k}"]`);
-    const w=f('w').value===''?null:Number(f('w').value),r=f('r').value===''?null:Number(f('r').value);
-    if((w!==null&&!validRange(w,0,1000))||(r!==null&&!validRange(r,0,1000)))throw Error('重量或次数填写不合理');
-    return {w,r,done:f('done').checked};
-  })}));
-  state.workouts[date]={date,day:trainDay,items};
-  await persist();notify('训练记录已加密保存');renderTraining();
+  const view=renderedWorkout,date=$('workout-date').value;
+  if(!view||view.date!==date||view.day!==trainDay)throw Error('训练日期已改变，请重新打开训练页面');
+  if(!/^\d{4}-\d\d-\d\d$/.test(date)||weekday(date)!==trainDay)throw Error('请选择与星期一致的有效训练日期');
+  if(!view.items.length)throw Error('当天没有可保存的训练动作');
+  const items=view.items.map((ex,i)=>({...view.actual?.items?.[i],name:ex.name,
+    ...(ex.exercise_id?{exercise_id:ex.exercise_id}:{}),sets:Array.from({length:ex.sets},(_,j)=>{
+      const f=k=>document.querySelector(`[data-exercise="${i}"][data-set="${j}"][data-field="${k}"]`);
+      const w=f('w').value===''?null:Number(f('w').value),r=f('r').value===''?null:Number(f('r').value);
+      if((w!==null&&!validRange(w,0,1000))||(r!==null&&(!validRange(r,0,1000)||!Number.isInteger(r))))throw Error('重量或次数填写不合理');
+      return {...view.actual?.items?.[i]?.sets?.[j],w,r,done:f('done').checked};
+    })}));
+  const record=view.actual?{...view.actual,items}:{date,day:trainDay,title:view.template.name,bodyParts:view.template.muscle_groups,
+    plan_id:view.plan.plan_id,plan_version:view.plan.plan_version,
+    plan_snapshot:{plan_id:view.plan.plan_id,plan_version:view.plan.plan_version,week:view.week,day:structuredClone(view.template)},items};
+  await commitStateChange(candidate=>{
+    if(JSON.stringify(candidate.workouts[date])!==view.original)throw Error('此日期的训练记录已更新，请重新打开');
+    candidate.workouts[date]=record;
+  });
+  notify('训练记录已加密保存');renderTraining();
 }
 function blankEntry() {return {kcal:null,protein:null,fat:null,carbs:null,note:''};}
 function renderFood() {
@@ -564,7 +580,7 @@ function renderProgress() {
   const workouts=$('workout-history');workouts.replaceChildren();
   const list=Object.values(state.workouts).filter(w=>w&&Array.isArray(w.items)).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,20);
   if(!list.length)workouts.append(el('div','empty','还没有训练记录'));
-  for(const x of list)workouts.append(histRow(`${x.date} · ${planTitle(x.day)}`,`完成 ${x.items.reduce((s,it)=>s+(it.sets||[]).filter(a=>a.done).length,0)} 组`));
+  for(const x of list)workouts.append(histRow(`${x.date} · ${x.title || x.plan_snapshot?.day?.name || '历史训练（未记录计划名称）'}`,`完成 ${x.items.reduce((s,it)=>s+(it.sets||[]).filter(a=>a.done===true).length,0)} 组`));
   const food=$('food-history');food.replaceChildren();
   const fed=Object.entries(state.nutrition).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,20);
   if(!fed.length)food.append(el('div','empty','还没有饮食记录'));
@@ -654,9 +670,11 @@ function init() {
   $('home-food').addEventListener('click',()=>navigate('food'));
   document.querySelectorAll('[data-screen]').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.screen)));
   $('week-prev').addEventListener('click',()=>{if(trainWeek>0){trainWeek--;trainDate=planDate(trainWeek,trainDay);renderTraining();}});
-  $('week-next').addEventListener('click',()=>{if(trainWeek<7){trainWeek++;trainDate=planDate(trainWeek,trainDay);renderTraining();}});
-  $('workout-date').addEventListener('change',()=>{const date=$('workout-date').value;if(date&&/^\d{4}-\d\d-\d\d$/.test(date)){trainDay=weekday(date);trainDate=date;trainWeek=Math.max(0,Math.min(7,weekDifference(state.settings.start,monday(date))));renderTraining();}});
+  $('week-next').addEventListener('click',()=>{if(trainWeek<planLength()-1){trainWeek++;trainDate=planDate(trainWeek,trainDay);renderTraining();}});
+  $('workout-date').addEventListener('change',()=>{const date=$('workout-date').value;if(date&&/^\d{4}-\d\d-\d\d$/.test(date)){trainDay=weekday(date);trainDate=date;trainWeek=Math.max(0,Math.min(planLength()-1,weekDifference(state.settings.start,monday(date))));renderTraining();}});
   $('food-date').addEventListener('change',()=>{const date=$('food-date').value;if(date&&/^\d{4}-\d\d-\d\d$/.test(date)){foodDay=weekday(date);foodDate=date;renderFood();}});
+  $('plan-retry').addEventListener('click',()=>guarded('plan-retry',loadTrainingPlan));
+  void loadTrainingPlan();
   $('save-workout').addEventListener('click',()=>guarded('save-workout',saveWorkout));
   $('save-food').addEventListener('click',()=>guarded('save-food',saveFood));
   $('save-measure').addEventListener('click',()=>guarded('save-measure',saveMeasure));
@@ -679,3 +697,4 @@ function init() {
   if('serviceWorker' in navigator&&window.isSecureContext)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(err=>console.warn('offline cache unavailable',err)));
 }
 document.addEventListener('DOMContentLoaded',init);
+
