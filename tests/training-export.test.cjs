@@ -8,3 +8,12 @@ test('inclusive endpoints, one-sided ranges and unknown dates',()=>{assert.equal
 test('invalid dates, reversed range and no records',()=>{assert.equal(validDate('2026-02-29'),false);assert.equal(validDate('2024-02-29'),true);assert.throws(()=>build(sample,'2026-10-22','2026-10-21'),/晚于/);assert.throws(()=>build(sample,'2026-11-01'),/没有训练记录/);assert.throws(()=>build({workouts:{}}),/没有可导出/);});
 test('CSV roundtrip, row widths, zero, blanks, done flags, UTF8 and extras',()=>{const s=csv(build(sample));assert.equal(s.charCodeAt(0),0xfeff);const rows=parseCSV(s);assert.ok(rows.every(r=>r.length===24),rows.map(r=>r.length).join(','));assert.equal(rows.length,7);assert.equal(rows[1][7],'卧推 ベンチプレス');assert.equal(rows[1][12],'0');assert.equal(rows[1][13],'0');assert.equal(rows[1][9],'2');assert.equal(rows[3][11],'false');assert.equal(rows[3][12],'');assert.equal(rows[2][15],'2');assert.equal(rows[1][18],sample.workouts['2026-10-01'].note);assert.equal(rows[1][19],"'=SUM(A1)");assert.deepEqual(JSON.parse(rows[1][21]).custom,{fatigue:7});assert.equal(rows[4][10],'');assert.equal(rows[5][10],'');assert.ok(!s.includes('hidden'));});
 test('completed count unknown without explicit flags; preserve unknown fields',()=>{const d=build({workouts:{'2026-10-21':{items:[{name:'test',sets:[{w:40,r:10,extra:'memo'}]}]}}});const rows=parseCSV(csv(d));assert.equal(rows[1][9],'');assert.equal(rows[1][11],'');assert.equal(JSON.parse(rows[1][23]).extra,'memo');assert.equal(rows[1][4],'');assert.equal(rows[1][5],'');assert.equal(rows[1][14],'');});
+
+
+test('record array preserves originals; actual completed totals exclude exact legacy copies and summaries',()=>{
+ const record={date:'2026-10-21',items:[{name:'卧推',sets:[{w:50,r:8,done:true},{w:50,r:7,done:false}]}]};
+ const d=build({workouts:{'2026-10-21':record,'legacy-2026-10-21-0':record},legacyHistory:[{date:record.date,sets:2}]});
+ assert.equal(d.record_count,2);assert.equal(d.records.length,2);assert.deepEqual(d.records[0].record,record);
+ assert.equal(d.completed_set_count,1);assert.deepEqual(d.excluded_legacy_duplicate_keys,['legacy-2026-10-21-0']);
+ assert.equal(parseCSV(csv(d)).filter(row=>row[0]==='workout').length,2);
+});

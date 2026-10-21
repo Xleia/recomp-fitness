@@ -1,4 +1,4 @@
-const CACHE = 'recomp-private-shell-v12';
+const CACHE = 'recomp-private-shell-v13';
 const FILES = ['./','./index.html','./styles.css','./app.js','./training-export.js','./training-export.css','./food-zh.js','./nutrition.js','./dishes.js','./dishes.css','./foods-mext-2023.csv','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
@@ -17,4 +17,5 @@ self.addEventListener('fetch', event => {
     return response;
   }).catch(()=>caches.match(req).then(cached=>cached || (req.mode==='navigate'?caches.match('./index.html'):Response.error()))));
 });
+
 
