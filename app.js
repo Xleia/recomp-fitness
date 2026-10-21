@@ -218,6 +218,7 @@ function drawAuth() {
 function renderEverything() {
   expandedExercises.clear();expandedMeals.clear();
   window.Nutrition?.clearSession();
+    window.PlanManager?.clearSession();
   $('measure-date').value=formattedDate(new Date());
   renderHome();renderTraining();renderFood();renderProgress();renderSettings();
 }
@@ -244,6 +245,7 @@ async function lock(forgetRememberedKey=false) {
     keyRef=null;saltRef=null;state=null;unlockedDay=null;renderedWorkout=null;
     resetSensitiveForms();
     window.Nutrition?.clearSession();
+    window.PlanManager?.clearSession();
     hide('app');hide('nav');hide('lock-btn');
     drawAuth();
     const resume=!manualLockRequested&&!document.hidden;
@@ -327,7 +329,7 @@ function navigate(screen) {
   try{localStorage.setItem(LAST_SCREEN_KEY,screen);}catch(err){console.warn('RECOMP: last page could not be remembered',err);}
   window.scrollTo(0,0);
 }
-function activePlan() {return window.RecompPlans.getDefault();}
+function activePlan() {return window.RecompPlans.resolve(state).plan;}
 function planLength() {return activePlan()?.duration_weeks || 8;}
 function currentWeek() {return Math.min(planLength(),Math.max(1,weekDifference(state.settings.start,monday(formattedDate(new Date())))+1));}
 function trainingDay(d,week=trainWeek+1) {return window.RecompPlans.dayFor(activePlan(),d,week);}
@@ -378,6 +380,7 @@ function makeFoldHeader(kind,title,summary,body,expanded,key) {
 }
 function planDate(week,d) {return shiftDays(state.settings.start,week*7+((d+6)%7));}
 function renderTraining() {
+  window.PlanManager?.render();
   const api=window.RecompPlans,plan=activePlan();
   trainWeek=Math.max(0,Math.min(planLength()-1,trainWeek));
   const day=trainingDay(trainDay),saved=state.workouts[trainDate];
@@ -387,7 +390,7 @@ function renderTraining() {
   busy('week-prev',trainWeek===0);busy('week-next',trainWeek===planLength()-1);
   drawDays('train-days',trainDay,d=>{trainDay=d;trainDate=planDate(trainWeek,d);renderTraining();});
   text('current-plan-label',plan?`${plan.name} · v${plan.plan_version}`:'默认计划尚未加载');
-  text('plan-load-status',api.getError()?'默认计划加载失败。历史记录仍可读取，请联网重试。':'');
+  text('plan-load-status',api.resolve(state).warning || (api.getError()?'默认计划加载失败。历史记录和有效的已导入计划仍可使用，请联网重试。':''));
   hide('plan-retry',!api.getError());
   text('train-title',`周${DAYS[trainDay]} · ${actual?(actual.title || actual.plan_snapshot?.day?.name || '已保存训练（未记录计划名称）'):(day?.name || '训练计划未就绪')}`);
   text('train-note',actual?'正在查看已保存记录，动作和组数来自该记录；保存时仅更新你填写的实际数据。':(day?.description || '计划尚未就绪，可重试加载；已有训练记录不受影响。'));
@@ -398,7 +401,7 @@ function renderTraining() {
     const ex=Array.isArray(snap)?(snap.find(x=>x.exercise_id===item.exercise_id)||snap[i]):null;
     return {...(ex || {}),name:item.name,sets:Array.isArray(item.sets)?item.sets.length:0};
   }):(day?.exercises || []).slice().sort((a,b)=>a.order-b.order);
-  renderedWorkout={date:trainDate,day:trainDay,week:trainWeek+1,plan,template:day,actual,items,original:JSON.stringify(saved)};
+  renderedWorkout={date:trainDate,day:trainDay,week:trainWeek+1,plan,entryId:api.resolve(state).entry?.entry_id || null,template:day,actual,items,original:JSON.stringify(saved)};
   hide('save-workout',!items.length);
   if(!items.length){container.append(el('div','empty',day?.type==='rest'?'今天不需要填写力量工作组。':actual?'此条记录没有动作组。':'今天没有可填写的动作组。'));text('train-count',day?.name || '计划未就绪');return;}
   let sum=0;
@@ -433,15 +436,19 @@ function previousExercise(date,name) {
   return null;
 }
 // Commit additive changes only after encryption and storage succeed. A failed write leaves memory and disk untouched.
-function commitStateChange(change) {
+function commitStateChange(change,isCurrent=()=>true) {
   if(!state||!keyRef||!saltRef||locking)return Promise.reject(Error('请先解锁保险库'));
   const key=keyRef,salt=saltRef,generation=authGeneration;
   const operation=writeQueue.catch(()=>{}).then(async()=>{
     if(!state||keyRef!==key||authGeneration!==generation||locking)throw Error('保险库已锁定或切换，未保存更改');
+    if(!isCurrent())throw Error('操作已取消，未保存更改');
     const before=JSON.stringify(state),candidate=structuredClone(state);change(candidate);
     const env=await seal(candidate,key,salt);
+    if(!isCurrent())throw Error('操作已取消，未保存更改');
     if(!state||keyRef!==key||authGeneration!==generation||locking||JSON.stringify(state)!==before)throw Error('数据已改变，请重新操作；原记录保持不变');
-    localStorage.setItem(VAULT_KEY,JSON.stringify(env));state=candidate;
+    const serialized=JSON.stringify(env);
+    if(new TextEncoder().encode(serialized).length>8*1024*1024)throw Error('完整保险库超过 8 MiB 可恢复备份上限，未保存更改；请先保存现有加密备份');
+    localStorage.setItem(VAULT_KEY,serialized);state=candidate;
   });
   writeQueue=operation;return operation;
 }
@@ -458,7 +465,7 @@ async function saveWorkout() {
       return {...view.actual?.items?.[i]?.sets?.[j],w,r,done:f('done').checked};
     })}));
   const record=view.actual?{...view.actual,items}:{date,day:trainDay,title:view.template.name,bodyParts:view.template.muscle_groups,
-    plan_id:view.plan.plan_id,plan_version:view.plan.plan_version,
+    plan_id:view.plan.plan_id,plan_version:view.plan.plan_version,plan_entry_id:view.entryId,
     plan_snapshot:{plan_id:view.plan.plan_id,plan_version:view.plan.plan_version,week:view.week,day:structuredClone(view.template)},items};
   await commitStateChange(candidate=>{
     if(JSON.stringify(candidate.workouts[date])!==view.original)throw Error('此日期的训练记录已更新，请重新打开');
@@ -656,6 +663,7 @@ async function purgeVault() {
   localStorage.removeItem(VAULT_KEY);
   localStorage.removeItem(LAST_SCREEN_KEY);
   window.Nutrition?.clearSession();
+    window.PlanManager?.clearSession();
   state=null;keyRef=null;saltRef=null;unlockedDay=null;drawAuth();notify('本机加密保险库已删除');
 }
 function init() {
@@ -674,6 +682,7 @@ function init() {
   $('workout-date').addEventListener('change',()=>{const date=$('workout-date').value;if(date&&/^\d{4}-\d\d-\d\d$/.test(date)){trainDay=weekday(date);trainDate=date;trainWeek=Math.max(0,Math.min(planLength()-1,weekDifference(state.settings.start,monday(date))));renderTraining();}});
   $('food-date').addEventListener('change',()=>{const date=$('food-date').value;if(date&&/^\d{4}-\d\d-\d\d$/.test(date)){foodDay=weekday(date);foodDate=date;renderFood();}});
   $('plan-retry').addEventListener('click',()=>guarded('plan-retry',loadTrainingPlan));
+  window.PlanManager?.init();
   void loadTrainingPlan();
   $('save-workout').addEventListener('click',()=>guarded('save-workout',saveWorkout));
   $('save-food').addEventListener('click',()=>guarded('save-food',saveFood));

@@ -43,3 +43,7 @@
 .exercise .fold-body>.exercise-meta{margin-top:7px}
 .meal .fold-body{padding-top:9px}
 .meal .fold-body .meal-grid{margin-top:2px}
+
+
+/* Imported plan preview: same theme, no HTML from imported text. */
+#plan-panel{overflow-wrap:anywhere}#plan-panel select{width:100%;min-width:0;max-width:100%;padding:12px;background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:10px}#plan-panel .field{min-width:0}#plan-panel input[type=file]{width:100%;max-width:100%;font-size:14px}#plan-panel button{white-space:normal;min-height:44px}#plan-preview{padding:12px 0;border-block:1px solid var(--border);margin:12px 0}#plan-preview details{border:1px solid var(--border);border-radius:10px;padding:10px;margin:8px 0}#plan-preview summary{cursor:pointer}#plan-preview li{margin:8px 0}#plan-manager-status{font-size:13px}#plan-panel [hidden]{display:none!important}

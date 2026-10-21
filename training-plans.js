@@ -74,5 +74,47 @@
     pending=(async()=>{try{const response=await fetcher('./plans/default-plan.json',{cache:'no-cache'});if(!response.ok)throw Error('默认计划文件无法加载');defaultPlan=validate(await response.json());loadError=null;return defaultPlan;}catch(e){loadError=e;throw e;}finally{pending=null;}})();
     return pending;
   }
-  return {MAX_BYTES,validate,dayFor,displayRange,restLabel,loadDefault,getDefault:()=>defaultPlan,getError:()=>loadError};
+  const MAX_LIBRARY_BYTES=2*1024*1024,MAX_VERSIONS=50;
+  function library(state){
+    if(state?.plan_library===undefined)return {schema_version:1,versions:[],active_entry_id:null};
+    const value=state.plan_library;keys(value,['schema_version','versions','active_entry_id'],'plan_library');
+    if(value.schema_version!==1)fail('plan_library.schema_version','不支持的计划库版本');
+    if(!Array.isArray(value.versions)||value.versions.length>MAX_VERSIONS)fail('plan_library.versions','计划库数量超限');
+    if(value.active_entry_id!==null)str(value.active_entry_id,'plan_library.active_entry_id',80);
+    if(new TextEncoder().encode(JSON.stringify(value)).length>MAX_LIBRARY_BYTES)fail('plan_library','计划库超过 2 MiB 限制');
+    const ids=new Set();
+    const versions=value.versions.map((entry,i)=>{
+      const path=`plan_library.versions[${i}]`;keys(entry,['entry_id','imported_at','plan'],path);
+      str(entry.entry_id,path+'.entry_id',80);if(ids.has(entry.entry_id))fail(path,'本地版本ID重复');ids.add(entry.entry_id);
+      str(entry.imported_at,path+'.imported_at',40);
+      if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(entry.imported_at)||!Number.isFinite(new Date(entry.imported_at).valueOf())||new Date(entry.imported_at).toISOString()!==entry.imported_at)fail(path,'导入时间无效');
+      return {entry_id:entry.entry_id,imported_at:entry.imported_at,plan:validate(entry.plan)};
+    });
+    return {schema_version:1,versions,active_entry_id:value.active_entry_id};
+  }
+  function resolve(state){
+    try{
+      const value=library(state),entry=value.versions.find(x=>x.entry_id===value.active_entry_id);
+      if(entry)return {plan:entry.plan,entry,warning:null};
+      return {plan:defaultPlan,entry:null,warning:value.active_entry_id?'启用版本不存在，已尝试使用系统默认计划；原数据保留。':null};
+    }catch(error){return {plan:defaultPlan,entry:null,warning:'计划库异常，已尝试使用系统默认计划；原数据保留。'+error.message};}
+  }
+  function duplicates(state,plan){return library(state).versions.filter(entry=>entry.plan.plan_id===plan.plan_id&&entry.plan.plan_version===plan.plan_version);}
+  function add(state,source,options){
+    const plan=validate(source),value=library(state);
+    if(value.versions.length>=MAX_VERSIONS)fail('版本','最多保存 50 个版本，请先保存完整加密备份');
+    if(duplicates(state,plan).length&&!options.allowDuplicate)fail('版本','同计划ID和版本已存在，请明确确认保存为本地副本');
+    str(options.entryId,'entry_id',80);if(value.versions.some(x=>x.entry_id===options.entryId))fail('entry_id','本地ID已存在');
+    value.versions.push({entry_id:options.entryId,imported_at:options.importedAt,plan});
+    if(options.activate)value.active_entry_id=options.entryId;
+    // Validate the entire candidate before it reaches encrypted persistence.
+    return library({plan_library:value});
+  }
+  function activate(state,entryId){
+    const value=library(state);
+    if(entryId!==null&&!value.versions.some(x=>x.entry_id===entryId))fail('启用版本','指定的已保存版本不存在');
+    value.active_entry_id=entryId;return value;
+  }
+  return {MAX_BYTES,MAX_LIBRARY_BYTES,MAX_VERSIONS,validate,dayFor,displayRange,restLabel,loadDefault,
+    library,resolve,duplicates,add,activate,getDefault:()=>defaultPlan,getError:()=>loadError};
 });

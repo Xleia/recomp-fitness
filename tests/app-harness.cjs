@@ -11,7 +11,7 @@ function harness(){
  const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');for(const m of html.matchAll(/id="([^"]+)"/g)){const e=new Element(doc);e.id=m[1];}
  const storage=new Map(),window={addEventListener(){},scrollTo(){}};
  const context=vm.createContext({document:doc,window,navigator:{},localStorage:{getItem:k=>storage.get(k)||null,setItem(k,v){storage.set(k,v);},removeItem:k=>storage.delete(k)},crypto:webcrypto,TextEncoder,TextDecoder,Uint8Array,Intl,Date,JSON,structuredClone,setTimeout,clearTimeout,Blob,File,atob,btoa,confirm:()=>true,console,fetch:async()=>({ok:true,json:async()=>structuredClone(require('../plans/default-plan.json'))})});
- for(const filename of ['training-plans.js','app.js'])vm.runInContext(fs.readFileSync(path.join(__dirname,'../'+filename),'utf8'),context);
+ for(const filename of ['training-plans.js','app.js','plan-manager.js'])vm.runInContext(fs.readFileSync(path.join(__dirname,'../'+filename),'utf8'),context);
  const run=code=>vm.runInContext(code,context);
  async function ready(){await window.RecompPlans.loadDefault(context.fetch);await run(`(async()=>{state=newState('2026-10-19',{train:2400,rest:2100,free:2600,protein:140},null,null);keyRef=await crypto.subtle.generateKey({name:'AES-GCM',length:256},false,['encrypt','decrypt']);saltRef=crypto.getRandomValues(new Uint8Array(16));trainDate='2026-10-21';trainDay=3;trainWeek=0;await persist();})();`);}
  return {doc,storage,context,run,window,ready};
