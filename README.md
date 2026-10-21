@@ -79,3 +79,6 @@ node --test tests/*.test.cjs
 ```
 
 测试使用模拟训练记录，覆盖日期筛选、字段保留、隐私排除、CSV 解析、真实 AES-GCM 加密保险库读取、保存失败及锁定清理。DOM 测试使用轻量事件模拟，不等同于实际浏览器测试；Windows 浏览器、iPhone Safari/PWA 系统分享仍需设备验收。
+
+
+导出 JSON 的 `records` 是完整记录数组，`workouts` 是同一批记录的兼容字典视图，不应重复累计。`completed_set_count` 只统计 `done === true`；与普通记录日期/动作逐组内容完全一致的 `legacy-*` 迁移副本会列在 `excluded_legacy_duplicate_keys`，保留原始 JSON，但不计总组数、不重复生成 CSV 逐组行；旧摘要始终不计总量。

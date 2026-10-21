@@ -33,15 +33,26 @@
       .sort(([ka,a],[kb,b]) => (dateOf(a,ka) || '9999-99-99').localeCompare(dateOf(b,kb) || '9999-99-99'));
     const legacy = Array.isArray(saved.legacyHistory) ? saved.legacyHistory.filter(w => w && inRange(dateOf(w,''))) : [];
     if (!selected.length && !legacy.length) throw Error(start || end ? '所选日期范围内没有训练记录' : '没有可导出的训练记录，请先保存训练记录');
+    const workouts = Object.fromEntries(selected.map(([k,v]) => [k,clean(v)]));
+    // Only exact migrated copies of a normal date-keyed record are excluded from totals.
+    const signature = (w,key) => JSON.stringify([dateOf(w,key),w.items]);
+    const normal = new Set(selected.filter(([key]) => !key.startsWith('legacy-')).map(([key,w]) => signature(w,key)));
+    const duplicates = selected.filter(([key,w]) => key.startsWith('legacy-') && normal.has(signature(w,key))).map(([key]) => key);
+    const countable = selected.filter(([key]) => !duplicates.includes(key));
+    const completed = countable.reduce((total,[,w]) => total + (Array.isArray(w.items) ? w.items : []).reduce((n,item) => n + (Array.isArray(item?.sets) ? item.sets : []).filter(set => set?.done === true).length,0),0);
     return {format:'recomp-training-export', schema_version:1, exported_at:now.toISOString(),
       encrypted:false, date_range:{start:start || null,end:end || null,inclusive:true},
       source:'persisted_local_vault', weight_unit:'kg', workout_count:selected.length,
-      notes:['workouts 保留实际保存结构；未使用预设训练计划补全字段。',
+      record_count:selected.length, completed_set_count:completed, excluded_legacy_duplicate_keys:duplicates,
+      records:selected.map(([key]) => ({record_key:key,record:workouts[key]})),
+      notes:['records 为完整记录数组；workouts 为同一批数据的兼容字典视图，两者不可重复累计。',
+        'excluded_legacy_duplicate_keys 中的旧迁移副本保留在原始 JSON，但不计完成组数，也不重复输出 CSV 组行。',
+        'workouts 保留实际保存结构；未使用预设训练计划补全字段。',
         'day 是原记录星期索引：0=周日，1=周一，…，6=周六。',
         'done=true 才表示确认完成；空白或未完成组也保留，不应计为完成训练量。',
         'legacy_history 为历史迁移摘要，可能与 workouts 重复，不应重复累计。',
         '未保存的训练日名称、部位、RPE/RIR、时长、休息时间等保持为空。'],
-      workouts:Object.fromEntries(selected.map(([k,v]) => [k,clean(v)])),legacy_history:clean(legacy)};
+      workouts,legacy_history:clean(legacy)};
   }
   const headers = ['记录类型','记录键','训练日期','星期索引','训练日名称','训练部位','动作序号','动作名称',
     '已记录组数','确认完成组数','组序号','完成状态','重量_kg','次数','组RPE','组RIR','组休息时间',
@@ -56,6 +67,7 @@
   function csv(data) {
     const rows = [headers];
     for (const [key,w] of Object.entries(data.workouts)) {
+      if (data.excluded_legacy_duplicate_keys?.includes(key)) continue;
       const base = ['workout', key, dateOf(w,key), w.day ?? null,
         pick(w,['title','name','dayName']),pick(w,['bodyParts','bodyPart','muscleGroups','muscles'])];
       const tail = [pick(w,['duration','durationMinutes','durationSeconds']),pick(w,['note','notes']),null,null,extra(w,['items']),null,null];
@@ -151,3 +163,4 @@
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded',install); else install();
 })();
+
