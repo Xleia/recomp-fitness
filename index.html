@@ -16,6 +16,7 @@
   <link rel="stylesheet" href="./styles.css">
   <link rel="stylesheet" href="./dishes.css">
   <link rel="stylesheet" href="./training-export.css">
+  <script defer src="./training-plans.js"></script>
   <script defer src="./app.js"></script>
   <script defer src="./training-export.js"></script>
   <script defer src="./food-zh.js"></script>
@@ -65,6 +66,7 @@
       </section>
 
       <section class="screen" id="screen-train" hidden>
+        <article class="panel" id="plan-panel"><h2>当前训练计划</h2><p id="current-plan-label">正在加载默认计划…</p><p id="plan-load-status" role="status"></p><button id="plan-retry" type="button" class="secondary" hidden>重试加载默认计划</button><p><a href="./plans/default-plan.json" download="RECOMP_default_plan.json">下载默认计划 JSON</a></p></article>
         <div class="heading"><span class="eyebrow">WORKOUT JOURNAL</span><h1>训练记录</h1><p>四分化 · 每组重量与次数独立保存</p></div>
         <div id="train-week-row" class="between panel slim"><button id="week-prev" type="button" class="icon-btn">←</button><div class="center"><strong id="train-week-title">第1周</strong><small id="train-week-range"></small></div><button id="week-next" type="button" class="icon-btn">→</button></div>
         <div id="train-days" class="day-tabs" role="group" aria-label="选择训练日期"></div>
@@ -112,4 +114,5 @@
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 </div>
 </body></html>
+
 
