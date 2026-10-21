@@ -1,0 +1,10 @@
+.training-export{margin-top:24px;padding-top:20px;border-top:1px solid var(--border)}
+.training-export h3{margin-top:0}.training-export p{font-size:13px;line-height:1.7;overflow-wrap:anywhere}
+.training-export-dates{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.training-export .field{min-width:0}.training-export input,.training-export select{box-sizing:border-box;width:100%;max-width:100%;min-width:0;font:inherit}
+.training-export input[type=date]{display:block;-webkit-appearance:none;appearance:none;min-height:44px}
+.training-export select{padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--panel2);color:var(--text)}
+.training-export button,.training-export a{margin-top:10px;white-space:normal;min-height:44px}
+.training-export a{display:flex;align-items:center;justify-content:center;text-decoration:none;box-sizing:border-box}
+.training-export [hidden]{display:none!important}
+@media(max-width:440px){.training-export-dates{grid-template-columns:minmax(0,1fr)}}
