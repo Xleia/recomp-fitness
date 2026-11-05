@@ -6,6 +6,7 @@ import { loadDefaultPlan, resolveTrainingPlan, type TrainingPlan } from '../feat
 import { PlanView } from '../features/plans/PlanView';
 import { PlanManager } from '../features/plans/PlanManager';
 import { listNutritionDays } from '../features/nutrition/selectors';
+import { readFoodLibrary, addCustomFood, toggleFavorite, deleteCustomFood } from '../features/nutrition/food-library';
 import { NutritionPage } from '../features/nutrition/NutritionPage';
 import { BackupControls } from '../features/settings/BackupControls';
 import { ProgressPage } from '../features/progress/ProgressPage';
@@ -62,6 +63,7 @@ export function App() {
     {error && <p role="alert">{error}</p>}<p className="notice">此预览不会写入、迁移或删除本地记录。请继续通过旧版 RECOMP 管理数据。</p></main>;
   const workouts = listWorkoutRecords(vault.workouts);
   const nutritionDays = listNutritionDays(vault.nutrition);
+  const foodLibrary = readFoodLibrary(vault);
   const planResolution = resolveTrainingPlan(vault, defaultPlan);
 
   async function exportRecords(kind: 'json' | 'csv') {
@@ -78,7 +80,7 @@ export function App() {
   return <div className="layout"><header><strong>RECOMP 2.0</strong><button onClick={() => setVault(null)}>锁定</button></header>
     <nav aria-label="主要功能">{screens.map((key, i) => <button key={key} aria-current={screen === key} onClick={() => setScreen(key)}>{labels[i]}</button>)}</nav>
     <main><h1>{labels[screens.indexOf(screen)]}</h1>
-      {screen === 'nutrition' && <NutritionPage days={nutritionDays} nutrition={vault.nutrition} onSaveManual={async (date, entries, lunch) => {
+      {screen === 'nutrition' && <NutritionPage days={nutritionDays} nutrition={vault.nutrition} foodLibrary={foodLibrary} onFavorite={async (id) => { await commitVault({ ...vault, foodLibrary: toggleFavorite(foodLibrary, id) }); }} onSaveCustom={async (value) => { const food = { ...value, id: 'custom-' + crypto.randomUUID(), code: '', zh: value.name, category: '自定义食品', source: 'user' as const }; await commitVault({ ...vault, foodLibrary: addCustomFood(foodLibrary, food) }); }} onDeleteCustom={async (id) => { await commitVault({ ...vault, foodLibrary: deleteCustomFood(foodLibrary, id) }); }} onSaveManual={async (date, entries, lunch) => {
         const oldDay = vault.nutrition[date] && typeof vault.nutrition[date] === 'object' ? vault.nutrition[date] as Record<string, unknown> : {};
         const candidate = { ...vault, nutrition: { ...vault.nutrition, [date]: { ...oldDay, date, entries, lunch } } };
         await commitVault(candidate);

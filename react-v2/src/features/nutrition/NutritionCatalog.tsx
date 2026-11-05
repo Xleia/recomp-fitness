@@ -1,31 +1,19 @@
-import { useEffect, useMemo, useState } from 'react';
-import { calculateMacros, formatFoodName, loadFoodCatalog, searchFoodCatalog, type Food, type MacroFields } from './catalog';
-const tokyoDate = () => {
-  const parts = new Intl.DateTimeFormat('en-CA', { timeZone:'Asia/Tokyo', year:'numeric', month:'2-digit', day:'2-digit' }).formatToParts(new Date());
-  const get = (type:string) => parts.find((part) => part.type === type)?.value ?? '';
-  return get('year') + '-' + get('month') + '-' + get('day');
-};
-export function NutritionCatalog({onAdd}:{onAdd:(food:Food,amount:number,meal:number,date:string)=>Promise<void>}) {
- const [foods,setFoods]=useState<Food[]>([]),[query,setQuery]=useState(''),[category,setCategory]=useState('');
- const [expanded,setExpanded]=useState(false),[selected,setSelected]=useState<Food|null>(null);
- const [amount,setAmount]=useState('100'),[meal,setMeal]=useState('0'),[date,setDate]=useState(tokyoDate);
- const [status,setStatus]=useState(''),[error,setError]=useState('');
- useEffect(()=>{let active=true;void loadFoodCatalog().then((data)=>{if(active)setFoods(data);}).catch((e:unknown)=>{if(active)setError(e instanceof Error?e.message:'食品数据加载失败');});return()=>{active=false;};},[]);
- const categories=useMemo(()=>Array.from(new Set(foods.map((food)=>food.category))),[foods]);
- const matched=searchFoodCatalog(foods,query,category),results=expanded?matched:matched.slice(0,5);
- let macros:MacroFields|null=null;try{if(selected)macros=calculateMacros(selected,Number(amount));}catch{macros=null;}
- async function add(){if(!selected||!macros){setError('请先选择食品并填写有效份量');return;}setError('');setStatus('');try{await onAdd(selected,Number(amount),Number(meal),date);setStatus('已添加到当天餐次并加密保存。');}catch(e){setError(e instanceof Error?e.message:'保存失败，原记录保持不变');}}
- return <section aria-label="食品数据库和营养计算器"><h2>食品数据库与营养计算器</h2>
-  <p>离线 MEXT 日本食品成分数据。营养值按每 100 g 展示，并根据你填写的实际份量计算。</p>
-  <label>搜索日本食品或中文名称<input value={query} onChange={(e)=>{setQuery(e.target.value);setExpanded(false);}} /></label>
-  <label>食品分类<select value={category} onChange={(e)=>{setCategory(e.target.value);setExpanded(false);}}><option value="">全部分类</option>{categories.map((item)=><option value={item} key={item}>{item}</option>)}</select></label>
-  {error&&<p role="alert">{error}</p>}
-  {foods.length===0?<p>正在加载食品数据库…</p>:results.length===0?<p>没有匹配的食品。</p>:<ul>{results.map((food)=><li key={food.id}><button type="button" className="food-pick" onClick={()=>setSelected(food)}>{formatFoodName(food)} · {food.per100.kcal} kcal / 100 g</button></li>)}</ul>}
-  {matched.length>5&&<button type="button" onClick={()=>setExpanded(!expanded)}>{expanded?'收起':'显示更多（'+matched.length+'）'}</button>}
-  {selected&&<div className="workout-card"><h3>{formatFoodName(selected)}</h3>
-   <label>实际份量（g）<input type="number" min="1" max="10000" step="1" value={amount} onChange={(e)=>setAmount(e.target.value)} /></label>
-   <p>{macros?macros.kcal+' kcal · 蛋白质 '+macros.protein+' g · 脂肪 '+macros.fat+' g · 碳水 '+macros.carbs+' g':'请输入有效份量'}</p>
-   <label>餐次<select value={meal} onChange={(e)=>setMeal(e.target.value)}>{['早餐','午餐','加餐 / 运动补给','晚餐'].map((x,i)=><option value={i} key={x}>{x}</option>)}</select></label>
-   <label>记录日期<input type="date" value={date} onChange={(e)=>setDate(e.target.value)} /></label><button type="button" onClick={()=>void add()}>添加到每日饮食</button>
-  </div>}{status&&<p role="status">{status}</p>}</section>;
+import {useEffect,useMemo,useState} from 'react';
+import {calculateMacros,formatFoodName,loadFoodCatalog,searchFoodCatalog,type Food,type MacroFields} from './catalog';
+import type {FoodLibrary} from './food-library';
+const tokyoDate=()=>{const p=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const g=(x:string)=>p.find(a=>a.type===x)?.value??'';return g('year')+'-'+g('month')+'-'+g('day');};
+type CustomInput={name:string;brand:string;baseUnit:'g'|'ml';per100:MacroFields};
+export function NutritionCatalog({foodLibrary,onAdd,onFavorite,onSaveCustom,onDeleteCustom}:{foodLibrary:FoodLibrary;onAdd:(f:Food,a:number,m:number,d:string)=>Promise<void>;onFavorite:(id:string)=>Promise<void>;onSaveCustom:(v:CustomInput)=>Promise<void>;onDeleteCustom:(id:string)=>Promise<void>}){
+ const [foods,setFoods]=useState<Food[]>([]),[query,setQuery]=useState(''),[category,setCategory]=useState(''),[expanded,setExpanded]=useState(false),[selected,setSelected]=useState<Food|null>(null),[amount,setAmount]=useState('100'),[meal,setMeal]=useState('0'),[date,setDate]=useState(tokyoDate),[status,setStatus]=useState(''),[error,setError]=useState(''),[favoriteOnly,setFavoriteOnly]=useState(false),[showCustom,setShowCustom]=useState(false),[newName,setNewName]=useState(''),[newBrand,setNewBrand]=useState(''),[unit,setUnit]=useState<'g'|'ml'>('g'),[macrosText,setMacrosText]=useState({kcal:'',protein:'',fat:'',carbs:''});
+ useEffect(()=>{let ok=true;void loadFoodCatalog().then(x=>{if(ok)setFoods(x)}).catch((e:unknown)=>{if(ok)setError(e instanceof Error?e.message:'食品数据加载失败')});return()=>{ok=false}},[]);
+ const all=useMemo(()=>[...foods,...foodLibrary.customFoods.map(f=>({...f,code:'',zh:f.name,category:'自定义食品'}))],[foods,foodLibrary.customFoods]),cats=useMemo(()=>Array.from(new Set(all.map(f=>f.category))),[all]),fav=new Set(foodLibrary.favorites),matched=searchFoodCatalog(all,query,category).filter(f=>!favoriteOnly||fav.has(f.id)),shown=expanded?matched:matched.slice(0,5);
+ let calc:MacroFields|null=null;try{if(selected)calc=calculateMacros(selected,Number(amount))}catch{}
+ async function add(){if(!selected||!calc){setError('请先选择食品并填写有效份量');return}try{await onAdd(selected,Number(amount),Number(meal),date);setStatus('已添加到当天餐次并加密保存。');setError('')}catch(e){setError(e instanceof Error?e.message:'保存失败')}}
+ async function save(){const vals=Object.fromEntries(Object.entries(macrosText).map(([k,v])=>[k,Number(v)])) as MacroFields;if(!newName.trim()||Object.values(macrosText).some(v=>v===''||!Number.isFinite(+v)||+v<0)){setError('请填写名称和有效的每100克/毫升营养值');return}try{await onSaveCustom({name:newName.trim(),brand:newBrand.trim(),baseUnit:unit,per100:vals});setShowCustom(false);setNewName('');setNewBrand('');setMacrosText({kcal:'',protein:'',fat:'',carbs:''});setStatus('自定义食品已加密保存。');setError('')}catch(e){setError(e instanceof Error?e.message:'保存失败')}}
+ return <section aria-label="食品数据库和营养计算器"><h2>食品数据库与营养计算器</h2><p>离线 MEXT 日本食品数据与本地自定义食品。营养值按每 100 g / 100 ml 展示。</p>
+ <label>搜索食品<input value={query} onChange={e=>{setQuery(e.target.value);setExpanded(false)}}/></label><label>食品分类<select value={category} onChange={e=>setCategory(e.target.value)}><option value="">全部分类</option>{cats.map(x=><option key={x}>{x}</option>)}</select></label><button type="button" aria-pressed={favoriteOnly} onClick={()=>setFavoriteOnly(!favoriteOnly)}>{favoriteOnly?'显示全部':'只看收藏'}</button>{error&&<p role="alert">{error}</p>}
+ {all.length===0?<p>正在加载食品数据库…</p>:shown.length===0?<p>没有匹配食品。</p>:<ul>{shown.map(f=><li key={f.id}><button type="button" className="food-pick" onClick={()=>setSelected(f)}>{formatFoodName(f)} · {f.per100.kcal} kcal / 100 {f.baseUnit}</button><button type="button" aria-pressed={fav.has(f.id)} onClick={()=>void onFavorite(f.id)}>{fav.has(f.id)?'★ 已收藏':'☆ 收藏'}</button>{f.source==='user'&&<button type="button" onClick={()=>{if(window.confirm('删除自定义食品？已有记录快照不变。'))void onDeleteCustom(f.id)}}>删除</button>}</li>)}</ul>}
+ {matched.length>5&&<button onClick={()=>setExpanded(!expanded)}>{expanded?'收起':'显示更多（'+matched.length+'）'}</button>}<button onClick={()=>setShowCustom(!showCustom)}>添加自定义食品</button>
+ {showCustom&&<div className="workout-card"><h3>自定义食品</h3><label>名称<input value={newName} onChange={e=>setNewName(e.target.value)}/></label><label>品牌 / 备注<input value={newBrand} onChange={e=>setNewBrand(e.target.value)}/></label><label>单位<select value={unit} onChange={e=>setUnit(e.target.value as 'g'|'ml')}><option>g</option><option>ml</option></select></label>{(['kcal','protein','fat','carbs'] as const).map(k=><label key={k}>{({kcal:'热量 kcal',protein:'蛋白质 g',fat:'脂肪 g',carbs:'碳水 g'})[k]} / 100{unit}<input type="number" min="0" step="0.01" value={macrosText[k]} onChange={e=>setMacrosText({...macrosText,[k]:e.target.value})}/></label>)}<button onClick={()=>void save()}>加密保存食品</button></div>}
+ {selected&&<div className="workout-card"><h3>{formatFoodName(selected)}</h3><label>份量（{selected.baseUnit}）<input type="number" min="1" max="10000" value={amount} onChange={e=>setAmount(e.target.value)}/></label><p>{calc?calc.kcal+' kcal · 蛋白质 '+calc.protein+' g · 脂肪 '+calc.fat+' g · 碳水 '+calc.carbs+' g':'请输入有效份量'}</p><label>餐次<select value={meal} onChange={e=>setMeal(e.target.value)}>{['早餐','午餐','加餐 / 运动补给','晚餐'].map((x,i)=><option value={i} key={x}>{x}</option>)}</select></label><label>日期<input type="date" value={date} onChange={e=>setDate(e.target.value)}/></label><button onClick={()=>void add()}>添加到每日饮食</button></div>}{status&&<p role="status">{status}</p>}</section>;
 }
