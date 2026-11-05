@@ -29,3 +29,23 @@ test('migrates synthetic legacy records into encrypted storage before clearing s
  const keys=await page.evaluate(()=>({legacy:localStorage.getItem('recomp8week'),vault:localStorage.getItem('recomp.encrypted.v2')}));
  expect(keys.legacy).toBeNull();expect(keys.vault).toContain('recomp-encrypted-vault');await context.close();
 });
+
+test('edits a real workout set and opens the nutrition catalog',async({browser})=>{
+ const context=await browser.newContext({serviceWorkers:'allow'}),page=await context.newPage(),password='synthetic workflow password';
+ let today='';
+ await page.goto('/recomp-fitness/react-v2/');
+ today=await page.evaluate(()=>{const p=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const g=(k:string)=>p.find(x=>x.type===k)?.value||'';return g('year')+'-'+g('month')+'-'+g('day')});
+ await page.evaluate(async({pass,date})=>{
+  const enc=new TextEncoder(),salt=new Uint8Array(16).fill(8),iv=new Uint8Array(12).fill(10),aad=enc.encode('RECOMP|encrypted-vault|v2');
+  const base=await crypto.subtle.importKey('raw',enc.encode(pass),'PBKDF2',false,['deriveKey']);
+  const key=await crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:600000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt']);
+  const state={schema:2,profile:{},settings:{start:date},measurements:[],workouts:{[date]:{date,title:'合成训练',day:4,items:[{name:'卧推',sets:[{w:50,r:8,done:true}]}]}},nutrition:{[date]:{date,entries:[{kcal:500,protein:30,fat:15,carbs:55,note:''},{kcal:null,protein:null,fat:null,carbs:null,note:''},{kcal:null,protein:null,fat:null,carbs:null,note:''},{kcal:null,protein:null,fat:null,carbs:null,note:''}],foodItems:[[],[],[],[]]}}};
+  const bytes=await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:aad,tagLength:128},key,enc.encode(JSON.stringify(state))),b64=(x:Uint8Array)=>btoa(String.fromCharCode(...x));
+  localStorage.setItem('recomp.encrypted.v2',JSON.stringify({format:'recomp-encrypted-vault',version:2,kdf:'PBKDF2-SHA256',iterations:600000,cipher:'AES-256-GCM',salt:b64(salt),iv:b64(iv),ciphertext:b64(new Uint8Array(bytes))}));
+ },{pass:password,date:today});
+ await page.reload();await page.getByLabel('保险库密码').fill(password);await page.getByRole('button',{name:'解锁本地保险库'}).click();
+ await page.getByRole('button',{name:'训练',exact:true}).click();await expect(page.getByRole('heading',{name:'训练记录'})).toBeVisible();
+ const summary=page.locator('details summary').filter({hasText:'卧推'});await expect(summary).toBeVisible();await expect(page.getByLabel('实际重量（kg）')).toBeHidden();await summary.click();await expect(page.getByLabel('实际重量（kg）')).toHaveValue('50');
+ await page.getByLabel('实际次数').fill('9');await page.getByRole('button',{name:'保存实际训练记录'}).click();await expect(page.getByRole('status')).toContainText('训练记录已加密保存');
+ await page.getByRole('button',{name:'饮食',exact:true}).click();await page.getByRole('button',{name:'食品数据库 / 添加食物'}).click();await expect(page.getByRole('heading',{name:'食品数据库与营养计算器'})).toBeVisible();await context.close();
+});
