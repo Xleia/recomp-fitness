@@ -12,7 +12,7 @@ export function WorkoutPage({workouts,plan,startDate,onSave}:{workouts:Record<st
  return <section aria-label="训练记录与历史"><h2>训练记录</h2><label>训练日期<input type="date" value={date} onChange={e=>setDate(e.target.value)}/></label>
  {day&&<p>{day.name} · 第 {week} / {plan?.duration_weeks??'—'} 周 · 保存时只记录你填写的实际完成数据。</p>}
  {!day&&!saved&&<p>该日期没有计划安排；可从历史训练选择已有日期查看记录。</p>}
- {draft.length===0?<p>{saved?'该日期没有训练动作。':'当前没有可记录动作。'}</p>:draft.map((item,i)=>{const planned=day?.exercises.find(x=>x.exercise_id===item.exercise_id);return <article className="workout-card" key={item.exercise_id??i}>
+ {draft.length===0?<p>{saved?'该日期没有训练动作。':'当前没有可记录动作。'}</p>:draft.map((item,i)=>{const planned=day?.exercises.find(x=>x.exercise_id===item.exercise_id);return <article className="workout-card" key={item.exercise_id??i}><details open={expanded[i]===true} onToggle={e=>setExpanded(x=>({...x,[i]:e.currentTarget.open}))}><summary>{item.name} · {item.sets.length} 组 · 已完成 {item.sets.filter(s=>s.done===true).length} 组</summary>
  <label>动作名称<input value={item.name} onChange={e=>setDraft(xs=>xs.map((x,k)=>k===i?{...x,name:e.target.value}:x))}/></label>
  {planned&&<p>计划参考：{planned.sets} 组 × {repsLabel(planned.reps)}；休息 {restLabel(planned.rest_seconds)}</p>}
  {item.sets.map((set,j)=><div className="set-row" key={j}><strong>第 {j+1} 组</strong>
