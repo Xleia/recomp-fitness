@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { completedWorkload, formatWorkload, listWorkoutRecords } from '../features/workout/selectors';
 import { WorkoutPage } from '../features/workout/WorkoutPage';
 import { createTrainingExport, saveTrainingExport, type DateRange } from '../features/workout/export';
@@ -14,7 +14,8 @@ import { removeMeasurementDate, upsertMeasurement, type Measurement } from '../f
 import type { RecompState } from '../types/state';
 import type { Food } from '../features/nutrition/catalog';
 import { calculateMacros } from '../features/nutrition/catalog';
-import { unlockEncryptedVault, parseEnvelope, persistEncryptedVault, VAULT_KEY } from '../services/vault';
+import { unlockEncryptedVault, unlockWithKey, parseEnvelope, persistEncryptedVault, toBase64, VAULT_KEY } from '../services/vault';
+import { rememberTodayKey, readTodayKey, forgetTodayKey, todayInTokyo } from '../services/daily-unlock';
 import { useAppStore } from '../stores/app';
 import './app.css';
 
@@ -28,6 +29,9 @@ export function App() {
   const vaultSalt = useAppStore((s) => s.vaultSalt);
   const setScreen = useAppStore((s) => s.setScreen);
   const [password, setPassword] = useState('');
+  const [authChecking, setAuthChecking] = useState(true);
+  const [authNotice, setAuthNotice] = useState('');
+  const unlockDay = useRef<string | null>(null);
   const [error, setError] = useState('');
   const [exportMessage, setExportMessage] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -41,6 +45,43 @@ export function App() {
     return () => { current = false; };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    async function restore() {
+      const current = useAppStore.getState().vault;
+      if (current && unlockDay.current && unlockDay.current !== todayInTokyo()) {
+        await forgetTodayKey();
+        setVault(null); unlockDay.current = null;
+      }
+      if (useAppStore.getState().vault || !window.isSecureContext || !window.crypto?.subtle) {
+        if (active) setAuthChecking(false);
+        return;
+      }
+      try {
+        const remembered = await readTodayKey();
+        const raw = localStorage.getItem(VAULT_KEY);
+        if (!remembered || !raw) return;
+        const envelope = parseEnvelope(raw);
+        if (remembered.day !== todayInTokyo() || remembered.salt !== envelope.salt) {
+          await forgetTodayKey(); return;
+        }
+        const session = await unlockWithKey(envelope, remembered.key);
+        if (active && !document.hidden && !useAppStore.getState().vault) {
+          setVault(session.state, session.key, session.salt);
+          unlockDay.current = todayInTokyo();
+        }
+      } catch {
+        await forgetTodayKey();
+      } finally {
+        if (active) setAuthChecking(false);
+      }
+    }
+    void restore();
+    const onVisible = () => { if (!document.hidden) void restore(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { active = false; document.removeEventListener('visibilitychange', onVisible); };
+  }, [setVault]);
+
   async function commitVault(candidate: RecompState) {
     if (!vaultKey || !vaultSalt) throw new Error('保险库已锁定，请重新解锁');
     await persistEncryptedVault(candidate, vaultKey, vaultSalt);
@@ -53,14 +94,16 @@ export function App() {
       const raw = localStorage.getItem(VAULT_KEY);
       if (!raw) throw new Error('尚未找到 RECOMP 加密保险库。迁移入口尚未开放，请继续使用旧版。');
       const session = await unlockEncryptedVault(parseEnvelope(raw), password);
-      setVault(session.state, session.key, session.salt); setPassword('');
+      setVault(session.state, session.key, session.salt); unlockDay.current = todayInTokyo(); setPassword('');
+      const remembered = await rememberTodayKey(session.key, toBase64(session.salt));
+      setAuthNotice(remembered ? '保险库已解锁；当天可免重复输入密码。' : '保险库已解锁；浏览器无法保存当天密钥，将继续要求密码。');
     } catch (e) {
       setError(e instanceof Error ? e.message : '无法解锁保险库');
     }
   }
   if (!vault) return <main className="auth"><h1>RECOMP 2.0</h1><p>React 迁移预览 · 数据尚未迁移</p>
-    <form onSubmit={unlock}><label>保险库密码<input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></label><button>解锁本地保险库</button></form>
-    {error && <p role="alert">{error}</p>}<p className="notice">此预览不会写入、迁移或删除本地记录。请继续通过旧版 RECOMP 管理数据。</p></main>;
+    {authChecking && <p role="status">正在检查当天的本地解锁状态…</p>}<form onSubmit={unlock}><label>保险库密码<input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></label><button>解锁本地保险库</button></form>
+    {error && <p role="alert">{error}</p>}{authNotice && <p role="status">{authNotice}</p>}<p className="notice">此预览不会写入、迁移或删除本地记录。请继续通过旧版 RECOMP 管理数据。</p></main>;
   const workouts = listWorkoutRecords(vault.workouts);
   const nutritionDays = listNutritionDays(vault.nutrition);
   const foodLibrary = readFoodLibrary(vault);
@@ -77,7 +120,7 @@ export function App() {
       setExportMessage(e instanceof Error ? e.message : '文件生成失败，请重试。');
     }
   }
-  return <div className="layout"><header><strong>RECOMP 2.0</strong><button onClick={() => setVault(null)}>锁定</button></header>
+  return <div className="layout"><header><strong>RECOMP 2.0</strong><button onClick={() => { void forgetTodayKey().finally(() => { unlockDay.current = null; setVault(null); }); }}>锁定</button></header>
     <nav aria-label="主要功能">{screens.map((key, i) => <button key={key} aria-current={screen === key} onClick={() => setScreen(key)}>{labels[i]}</button>)}</nav>
     <main><h1>{labels[screens.indexOf(screen)]}</h1>
       {screen === 'nutrition' && <NutritionPage days={nutritionDays} nutrition={vault.nutrition} foodLibrary={foodLibrary} onFavorite={async (id) => { await commitVault({ ...vault, foodLibrary: toggleFavorite(foodLibrary, id) }); }} onSaveCustom={async (value) => { const food = { ...value, id: 'custom-' + crypto.randomUUID(), code: '', zh: value.name, category: '自定义食品', source: 'user' as const }; await commitVault({ ...vault, foodLibrary: addCustomFood(foodLibrary, food) }); }} onDeleteCustom={async (id) => { await commitVault({ ...vault, foodLibrary: deleteCustomFood(foodLibrary, id) }); }} onSaveRecipe={async (id,value)=>{const old=foodLibrary.dishRecipes&&typeof foodLibrary.dishRecipes==='object'?foodLibrary.dishRecipes as Record<string,unknown>:{};await commitVault({...vault,foodLibrary:{...foodLibrary,dishRecipes:{...old,[id]:value}}});}} onToggleDishFavorite={async(id)=>{const old=Array.isArray(foodLibrary.dishFavorites)?foodLibrary.dishFavorites.filter((x):x is string=>typeof x==='string'):[];const next=old.includes(id)?old.filter(x=>x!==id):[...old,id].slice(-120);await commitVault({...vault,foodLibrary:{...foodLibrary,dishFavorites:next}});}} onAddDish={async(entry,date)=>{const check=new Date(date+'T12:00:00Z');if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)||!Number.isFinite(check.valueOf())||check.toISOString().slice(0,10)!==date)throw Error('日期无效');if(entry.grams<1||entry.grams>10000)throw Error('菜品重量需在1～10000g之间');const old=vault.nutrition[date]&&typeof vault.nutrition[date]==='object'?vault.nutrition[date] as Record<string,unknown>:{};const saved=Array.isArray(old.foodItems)?old.foodItems:[];const foodItems=Array.from({length:4},(_,i)=>Array.isArray(saved[i])?[...saved[i]]:[]);if(foodItems[entry.mealIndex].length>=100)throw Error('单餐最多记录100项食品');const p=entry.per100,g=entry.grams;foodItems[entry.mealIndex].push({id:'dish-entry-'+crypto.randomUUID(),name:entry.name,code:'',source:entry.source,category:'成品菜',baseUnit:'g',per100:p,amount:g,unit:'g',factor:1,dishMeta:entry.meta,snap:{kcal:p.kcal*g/100,protein:p.protein*g/100,fat:p.fat*g/100,carbs:p.carbs*g/100}});await commitVault({...vault,nutrition:{...vault.nutrition,[date]:{...old,date,foodItems}}});}} onSaveTemplate={async (name,row) => { const template={id:'template-'+crypto.randomUUID(),name:name.slice(0,50),mealIndex:0,rows:[row]}; await commitVault({ ...vault, foodLibrary: saveMealTemplate(foodLibrary,template) }); }} onRemoveTemplate={async (id) => { await commitVault({ ...vault, foodLibrary: removeMealTemplate(foodLibrary,id) }); }} onApplyTemplate={async (rows,date,meal) => { if(!Number.isInteger(meal)||meal<0||meal>3||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(date)) throw new Error('日期或餐次无效'); const day=vault.nutrition[date]&&typeof vault.nutrition[date]==='object'?vault.nutrition[date] as Record<string,unknown>:{}; const old=Array.isArray(day.foodItems)?day.foodItems:[]; const items=Array.from({length:4},(_,i)=>Array.isArray(old[i])?[...old[i]]:[]); if(items[meal].length+rows.length>100) throw new Error('单餐最多记录100项食品'); items[meal].push(...rows.map(row=>({...row}))); const candidate={...vault,nutrition:{...vault.nutrition,[date]:{...day,date,foodItems:items}}}; await commitVault(candidate); }} onSaveManual={async (date, entries, lunch) => {

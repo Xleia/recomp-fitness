@@ -78,6 +78,8 @@ export async function unlockEncryptedVault(envelope: VaultEnvelope, password: st
   assertCompatibleState(value);
   return { state: value, key, salt };
 }
+
+export async function unlockWithKey(envelope:VaultEnvelope,key:CryptoKey):Promise<VaultSession>{const salt=fromBase64(envelope.salt);const bytes=await crypto.subtle.decrypt({name:'AES-GCM',iv:fromBase64(envelope.iv),additionalData:AAD,tagLength:128},key,fromBase64(envelope.ciphertext));const value:unknown=JSON.parse(dec.decode(bytes));assertCompatibleState(value);return{state:value,key,salt};}
 export async function decryptVault(envelope: VaultEnvelope, password: string): Promise<RecompState> {
   return (await unlockEncryptedVault(envelope, password)).state;
 }
