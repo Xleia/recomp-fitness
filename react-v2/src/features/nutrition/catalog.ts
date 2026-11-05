@@ -1,6 +1,6 @@
 import { translateFoodName } from './food-zh.js';
 export type MacroFields={kcal:number;protein:number;fat:number;carbs:number};
-export interface Food{id:string;code:string;name:string;zh:string;category:string;baseUnit:'g';per100:MacroFields;source:string}
+export interface Food{id:string;code:string;name:string;zh:string;category:string;baseUnit:'g'|'ml';per100:MacroFields;source:string}
 const cats:Record<string,string>={'穀類':'谷物','いも及びでん粉類':'薯类','砂糖及び甘味類':'糖类','豆類':'豆类','種実類':'坚果种子','野菜類':'蔬菜','果実類':'水果','きのこ類':'菌菇','藻類':'海藻','魚介類':'鱼贝类','肉類':'肉类','卵類':'蛋类','乳類':'乳制品','油脂類':'油脂','菓子類':'点心','し好飲料類':'饮料','調味料及び香辛料類':'调味料','調理済み流通食品類':'即食食品'};
 const source='日本食品标准成分表（八订）增补2023年 · 第三方整理';
 export function parseCsv(text:string):string[][]{const rows:string[][]=[];let row:string[]=[],field='',quoted=false;for(let i=0;i<text.length;i++){const c=text[i];if(quoted){if(c==='"'&&text[i+1]==='"'){field+='"';i++;}else if(c==='"')quoted=false;else field+=c;}else if(c==='"')quoted=true;else if(c===','){row.push(field);field='';}else if(c==='\n'){row.push(field.replace(/\r$/,''));rows.push(row);row=[];field='';}else field+=c;}if(field.length||row.length){row.push(field.replace(/\r$/,''));rows.push(row);}return rows;}
