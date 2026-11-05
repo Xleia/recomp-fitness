@@ -28,6 +28,8 @@ function keys(value: unknown, allowed: string[], path: string): asserts value is
   if (!object(value)) fail(path, '必须为对象');
   for (const key of Object.keys(value)) if (!allowed.includes(key)) fail(path + '.' + key, '不支持的字段');
 }
+function string(value: unknown, path: string, max?: number, optional?: false): asserts value is string;
+function string(value: unknown, path: string, max: number, optional: true): asserts value is string | undefined;
 function string(value: unknown, path: string, max = 500, optional = false): asserts value is string | undefined {
   if (optional && value === undefined) return;
   if (typeof value !== 'string' || !value.trim() || value.length > max) fail(path, '文本长度或内容无效');
