@@ -24,7 +24,7 @@ export function ProgressPage({measurements,onSave,onDelete}:{measurements:Measur
   </div>
   <div className="progress-charts"><Trend rows={measurements} field="weight" label="体重趋势" unit="kg"/><Trend rows={measurements} field="waist" label="腰围趋势" unit="cm"/></div>
   <h3>历史记录</h3>{measurements.length===0?<p>尚无体测记录。</p>:<ul>{[...measurements].filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x.date)).sort((a,b)=>b.date.localeCompare(a.date)).map((row,i)=><li key={row.date+i}>
-   <button type="button" className="food-pick" onClick={()=>{setDate(row.date);setWeight(typeof row.weight==='number'?String(row.weight):'');setWaist(typeof row.waist==='number'?String(row.waist):'');}}>{row.date} · 体重 {row.weight??'—'} kg · 腰围 {row.waist??'—'} cm</button>
+   <button type="button" className="food-pick" onClick={()=>{setDate(row.date);setWeight(typeof row.weight==='number'?String(row.weight):'');setWaist(typeof row.waist==='number'?String(row.waist):'');}}>{row.date} · 体重 {typeof row.weight==='number'?row.weight:'—'} kg · 腰围 {typeof row.waist==='number'?row.waist:'—'} cm</button>
    <button type="button" onClick={()=>{if(window.confirm('删除 '+row.date+' 的体测记录？'))void onDelete(row.date).catch(e=>setError(e instanceof Error?e.message:'删除失败'));}}>删除</button>
   </li>)}</ul>}
  </section>;
