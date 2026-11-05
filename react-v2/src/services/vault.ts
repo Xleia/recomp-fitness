@@ -103,3 +103,27 @@ export async function readEncryptedVault(storage: Storage = localStorage): Promi
   const raw = storage.getItem(VAULT_KEY);
   return raw ? parseEnvelope(raw) : null;
 }
+
+export function encryptedBackupJson(storage: Storage = localStorage): string {
+  const raw = storage.getItem(VAULT_KEY);
+  if (!raw) throw new Error('当前没有可导出的加密保险库');
+  return JSON.stringify(parseEnvelope(raw), null, 2);
+}
+export async function restoreEncryptedBackup(
+  raw: string,
+  password: string,
+  storage: Storage = localStorage,
+  confirmReplace: () => boolean | Promise<boolean> = () => false,
+): Promise<VaultSession | null> {
+  const size = new TextEncoder().encode(raw).length;
+  if (size > 8 * 1024 * 1024 || size < 100) throw new Error('备份文件体积异常');
+  if (!password) throw new Error('请输入备份密码');
+  const envelope = parseEnvelope(raw);
+  let session: VaultSession;
+  try { session = await unlockEncryptedVault(envelope, password); }
+  catch { throw new Error('备份密码错误或文件已损坏'); }
+  if (!await confirmReplace()) return null;
+  // Restore the original envelope unchanged. A failed write leaves current in-memory state untouched.
+  storage.setItem(VAULT_KEY, JSON.stringify(envelope));
+  return session;
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decryptVault, parseEnvelope, persistEncryptedVault, toBase64, unlockEncryptedVault } from './vault';
+import { decryptVault, parseEnvelope, encryptedBackupJson, persistEncryptedVault, restoreEncryptedBackup, toBase64, unlockEncryptedVault } from './vault';
 
 const aad = new TextEncoder().encode('RECOMP|encrypted-vault|v2');
 const encoder = new TextEncoder();
@@ -75,6 +75,27 @@ describe('legacy encrypted vault compatibility', () => {
     } as unknown as Storage;
     await expect(persistEncryptedVault({ ...session.state }, session.key, session.salt, storage)).rejects.toThrow('quota');
     expect(saved).toBe('old-envelope');
+  });
+
+  it('restores an encrypted backup only after explicit confirmation', async () => {
+    const original = { schema: 2, profile: {}, settings: {}, measurements: [], workouts: {}, nutrition: {}, legacyHistory: [] };
+    const raw = JSON.stringify(await legacyEnvelope(original));
+    const data = new Map<string, string>();
+    const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => { data.set(key, value); } } as Storage;
+    const declined = await restoreEncryptedBackup(raw, 'test-only password', storage, () => false);
+    expect(declined).toBeNull();
+    expect(data.size).toBe(0);
+    const restored = await restoreEncryptedBackup(raw, 'test-only password', storage, () => true);
+    expect(restored?.state).toEqual(original);
+    expect(encryptedBackupJson(storage)).toBe(JSON.stringify(JSON.parse(raw), null, 2));
+  });
+
+  it('leaves existing backup bytes unchanged for a wrong password', async () => {
+    const raw = JSON.stringify(await legacyEnvelope({ schema: 2, profile: {}, settings: {}, measurements: [], workouts: {}, nutrition: {} }));
+    let saved = 'existing';
+    const storage = { getItem: () => saved, setItem: (_key: string, value: string) => { saved = value; } } as unknown as Storage;
+    await expect(restoreEncryptedBackup(raw, 'wrong password', storage, () => true)).rejects.toThrow();
+    expect(saved).toBe('existing');
   });
 
 });
