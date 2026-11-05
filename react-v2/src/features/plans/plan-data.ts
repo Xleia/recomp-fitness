@@ -96,6 +96,7 @@ export function parseTrainingPlan(source: unknown): TrainingPlan {
   let plan: unknown;
   try {
     const serialized = JSON.stringify(source);
+    if (typeof serialized !== 'string') fail('文件', '不是有效 JSON 对象');
     if (new TextEncoder().encode(serialized).length > 512 * 1024) fail('文件', '超过 512 KiB 限制');
     plan = JSON.parse(serialized);
   } catch (error) {
