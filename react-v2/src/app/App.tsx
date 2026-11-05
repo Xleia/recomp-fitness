@@ -8,7 +8,6 @@ import { PlanManager } from '../features/plans/PlanManager';
 import { listNutritionDays } from '../features/nutrition/selectors';
 import { readFoodLibrary, addCustomFood, toggleFavorite, deleteCustomFood, saveMealTemplate, removeMealTemplate } from '../features/nutrition/food-library';
 import { NutritionPage } from '../features/nutrition/NutritionPage';
-import { makeDishEntry } from '../features/nutrition/dish-calculations';
 import { BackupControls } from '../features/settings/BackupControls';
 import { ProgressPage } from '../features/progress/ProgressPage';
 import { removeMeasurementDate, upsertMeasurement, type Measurement } from '../features/progress/selectors';
