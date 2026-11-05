@@ -77,6 +77,7 @@ export function App() {
         const foodItems = Array.from({ length: 4 }, (_, i) => Array.isArray(savedItems[i]) ? [...savedItems[i]] : []);
         const row = { id: food.id, code: food.code, name: food.name, source: food.source, category: food.category,
           baseUnit: food.baseUnit, per100: food.per100, amount, unit: food.baseUnit, factor: 1, snap: calculateMacros(food, amount) };
+        if (foodItems[meal].length >= 100) throw new Error('单餐最多记录100项食品');
         foodItems[meal].push(row);
         const oldEntries = Array.isArray(oldDay.entries) ? oldDay.entries : [];
         const entries = Array.from({ length: 4 }, (_, i) => oldEntries[i] && typeof oldEntries[i] === 'object'
