@@ -3,6 +3,7 @@ import { completedWorkload, formatWorkload, listWorkoutRecords } from '../featur
 import { createTrainingExport, saveTrainingExport, type DateRange } from '../features/workout/export';
 import { loadDefaultPlan, resolveTrainingPlan, type TrainingPlan } from '../features/plans/plan-data';
 import { PlanView } from '../features/plans/PlanView';
+import { PlanManager } from '../features/plans/PlanManager';
 import { unlockEncryptedVault, parseEnvelope, persistEncryptedVault, VAULT_KEY } from '../services/vault';
 import { useAppStore } from '../stores/app';
 import './app.css';
@@ -13,6 +14,8 @@ export function App() {
   const vault = useAppStore((s) => s.vault);
   const screen = useAppStore((s) => s.screen);
   const setVault = useAppStore((s) => s.setVault);
+  const vaultKey = useAppStore((s) => s.vaultKey);
+  const vaultSalt = useAppStore((s) => s.vaultSalt);
   const setScreen = useAppStore((s) => s.setScreen);
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -76,7 +79,12 @@ export function App() {
           </article>;
         })}
       </section>}
-      {screen === 'plans' && <PlanView plan={planResolution.plan} imported={planResolution.imported} warning={planResolution.warning || planWarning} />}
+      {screen === 'plans' && <><PlanView plan={planResolution.plan} imported={planResolution.imported} warning={planResolution.warning || planWarning} />
+        <PlanManager vault={vault} onCommit={async (candidate) => {
+          if (!vaultKey || !vaultSalt) throw new Error('保险库已锁定，请重新解锁');
+          await persistEncryptedVault(candidate, vaultKey, vaultSalt);
+          setVault(candidate, vaultKey, vaultSalt);
+        }} /></>}
       {screen === 'settings' && <section aria-label="备份与恢复"><h2>数据管理 / 备份与恢复</h2>
         <p className="notice">训练导出文件未加密，不会上传到服务器。请妥善保管；原加密完整备份与恢复仍由旧版入口处理。</p>
         <div className="date-filter"><label>开始日期<input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></label>
