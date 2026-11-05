@@ -7,6 +7,9 @@ import { PlanManager } from '../features/plans/PlanManager';
 import { listNutritionDays } from '../features/nutrition/selectors';
 import { NutritionPage } from '../features/nutrition/NutritionPage';
 import { BackupControls } from '../features/settings/BackupControls';
+import { ProgressPage } from '../features/progress/ProgressPage';
+import { removeMeasurementDate, upsertMeasurement, type Measurement } from '../features/progress/selectors';
+import type { RecompState } from '../types/state';
 import type { Food } from '../features/nutrition/catalog';
 import { calculateMacros } from '../features/nutrition/catalog';
 import { unlockEncryptedVault, parseEnvelope, persistEncryptedVault, VAULT_KEY } from '../services/vault';
@@ -35,6 +38,12 @@ export function App() {
       .catch((e: unknown) => { if (current) setPlanWarning(e instanceof Error ? e.message : '默认计划加载失败'); });
     return () => { current = false; };
   }, []);
+
+  async function commitVault(candidate: RecompState) {
+    if (!vaultKey || !vaultSalt) throw new Error('保险库已锁定，请重新解锁');
+    await persistEncryptedVault(candidate, vaultKey, vaultSalt);
+    setVault(candidate, vaultKey, vaultSalt);
+  }
 
   async function unlock(event: FormEvent) {
     event.preventDefault(); setError('');
@@ -88,6 +97,15 @@ export function App() {
         setVault(candidate, vaultKey, vaultSalt);
       }} />}
       {screen === 'home' && <p>已读取训练 {workouts.length} 天、饮食 {Object.keys(vault.nutrition).length} 天、体测 {vault.measurements.length} 条。</p>}
+      {screen === 'progress' && <ProgressPage measurements={vault.measurements as Measurement[]}
+        onSave={async (date, weight, waist) => {
+          const candidate = { ...vault, measurements: upsertMeasurement(vault.measurements as Measurement[], date, weight, waist) };
+          await commitVault(candidate);
+        }}
+        onDelete={async (date) => {
+          const candidate = { ...vault, measurements: removeMeasurementDate(vault.measurements as Measurement[], date) };
+          await commitVault(candidate);
+        }} />}
       {screen === 'workout' && <section aria-label="训练历史"><p>只读历史记录 · {workouts.length} 次训练。训练量只统计记录中 done=true 且有实际重量和次数的组。</p>
         {workouts.length === 0 ? <p>当前保险库没有训练记录。</p> : workouts.map(({ key, record }) => {
           const workload = completedWorkload(record);
@@ -107,8 +125,7 @@ export function App() {
       {screen === 'plans' && <><PlanView plan={planResolution.plan} imported={planResolution.imported} warning={planResolution.warning || planWarning} />
         <PlanManager vault={vault} onCommit={async (candidate) => {
           if (!vaultKey || !vaultSalt) throw new Error('保险库已锁定，请重新解锁');
-          await persistEncryptedVault(candidate, vaultKey, vaultSalt);
-          setVault(candidate, vaultKey, vaultSalt);
+          await commitVault(candidate);
         }} /></>}
       {screen === 'settings' && <section aria-label="备份与恢复"><h2>数据管理 / 备份与恢复</h2>
         <p className="notice">训练导出文件未加密，不会上传到服务器。请妥善保管；原加密完整备份与恢复仍由旧版入口处理。</p>
