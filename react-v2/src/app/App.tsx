@@ -4,6 +4,8 @@ import { createTrainingExport, saveTrainingExport, type DateRange } from '../fea
 import { loadDefaultPlan, resolveTrainingPlan, type TrainingPlan } from '../features/plans/plan-data';
 import { PlanView } from '../features/plans/PlanView';
 import { PlanManager } from '../features/plans/PlanManager';
+import { listNutritionDays } from '../features/nutrition/selectors';
+import { NutritionHistory } from '../features/nutrition/NutritionHistory';
 import { unlockEncryptedVault, parseEnvelope, persistEncryptedVault, VAULT_KEY } from '../services/vault';
 import { useAppStore } from '../stores/app';
 import './app.css';
@@ -46,6 +48,7 @@ export function App() {
     <form onSubmit={unlock}><label>保险库密码<input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></label><button>解锁本地保险库</button></form>
     {error && <p role="alert">{error}</p>}<p className="notice">此预览不会写入、迁移或删除本地记录。请继续通过旧版 RECOMP 管理数据。</p></main>;
   const workouts = listWorkoutRecords(vault.workouts);
+  const nutritionDays = listNutritionDays(vault.nutrition);
   const planResolution = resolveTrainingPlan(vault, defaultPlan);
 
   async function exportRecords(kind: 'json' | 'csv') {
@@ -62,6 +65,7 @@ export function App() {
   return <div className="layout"><header><strong>RECOMP 2.0</strong><button onClick={() => setVault(null)}>锁定</button></header>
     <nav aria-label="主要功能">{screens.map((key, i) => <button key={key} aria-current={screen === key} onClick={() => setScreen(key)}>{labels[i]}</button>)}</nav>
     <main><h1>{labels[screens.indexOf(screen)]}</h1>
+      {screen === 'nutrition' && <NutritionHistory days={nutritionDays} />}
       {screen === 'home' && <p>已读取训练 {workouts.length} 天、饮食 {Object.keys(vault.nutrition).length} 天、体测 {vault.measurements.length} 条。</p>}
       {screen === 'workout' && <section aria-label="训练历史"><p>只读历史记录 · {workouts.length} 次训练。训练量只统计记录中 done=true 且有实际重量和次数的组。</p>
         {workouts.length === 0 ? <p>当前保险库没有训练记录。</p> : workouts.map(({ key, record }) => {
@@ -93,7 +97,7 @@ export function App() {
           <button onClick={() => void exportRecords('csv')}>导出训练记录（CSV）</button></div>
         {exportMessage && <p role="status">{exportMessage}</p>}
       </section>}
-      {!['home', 'workout', 'settings', 'plans'].includes(screen) && <p>此模块正在迁移。当前数据只保存在内存中，不会修改保险库。</p>}
+      {!['home', 'workout', 'settings', 'plans', 'nutrition'].includes(screen) && <p>此模块正在迁移。当前数据只保存在内存中，不会修改保险库。</p>}
     </main>
   </div>;
 }
