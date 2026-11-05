@@ -37,7 +37,7 @@ export function App() {
   async function exportRecords(kind: 'json' | 'csv') {
     setExportMessage('');
     try {
-      const payload = createTrainingExport(vault.workouts, { startDate, endDate } satisfies DateRange);
+      const payload = createTrainingExport(vault!.workouts, { startDate, endDate } satisfies DateRange);
       if (!payload.record_count) { setExportMessage('所选日期范围内没有训练记录。'); return; }
       const filename = await saveTrainingExport(kind, payload);
       setExportMessage('已生成 ' + filename + '。这是未加密文件，请妥善保管。');
