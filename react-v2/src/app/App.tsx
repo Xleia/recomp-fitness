@@ -78,7 +78,11 @@ export function App() {
   return <div className="layout"><header><strong>RECOMP 2.0</strong><button onClick={() => setVault(null)}>锁定</button></header>
     <nav aria-label="主要功能">{screens.map((key, i) => <button key={key} aria-current={screen === key} onClick={() => setScreen(key)}>{labels[i]}</button>)}</nav>
     <main><h1>{labels[screens.indexOf(screen)]}</h1>
-      {screen === 'nutrition' && <NutritionPage days={nutritionDays} onAdd={async (food: Food, amount: number, meal: number, date: string) => {
+      {screen === 'nutrition' && <NutritionPage days={nutritionDays} nutrition={vault.nutrition} onSaveManual={async (date, entries, lunch) => {
+        const oldDay = vault.nutrition[date] && typeof vault.nutrition[date] === 'object' ? vault.nutrition[date] as Record<string, unknown> : {};
+        const candidate = { ...vault, nutrition: { ...vault.nutrition, [date]: { ...oldDay, date, entries, lunch } } };
+        await commitVault(candidate);
+      }} onAdd={async (food: Food, amount: number, meal: number, date: string) => {
         const dateValue = new Date(date + 'T12:00:00Z');
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(dateValue.valueOf()) || dateValue.toISOString().slice(0, 10) !== date ||
             !Number.isInteger(meal) || meal < 0 || meal > 3) throw new Error('日期或餐次无效');
