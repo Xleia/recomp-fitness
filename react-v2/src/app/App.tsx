@@ -9,12 +9,13 @@ import { listNutritionDays } from '../features/nutrition/selectors';
 import { readFoodLibrary, addCustomFood, toggleFavorite, deleteCustomFood, saveMealTemplate, removeMealTemplate } from '../features/nutrition/food-library';
 import { NutritionPage } from '../features/nutrition/NutritionPage';
 import { BackupControls } from '../features/settings/BackupControls';
+import { SecurityControls } from '../features/settings/SecurityControls';
 import { ProgressPage } from '../features/progress/ProgressPage';
 import { removeMeasurementDate, upsertMeasurement, type Measurement } from '../features/progress/selectors';
 import type { RecompState } from '../types/state';
 import type { Food } from '../features/nutrition/catalog';
 import { calculateMacros } from '../features/nutrition/catalog';
-import { unlockEncryptedVault, unlockWithKey, parseEnvelope, persistEncryptedVault, toBase64, VAULT_KEY } from '../services/vault';
+import { unlockEncryptedVault, unlockWithKey, parseEnvelope, persistEncryptedVault, reencryptVaultWithPassword, toBase64, VAULT_KEY } from '../services/vault';
 import { rememberTodayKey, readTodayKey, forgetTodayKey, todayInTokyo } from '../services/daily-unlock';
 import { useAppStore } from '../stores/app';
 import './app.css';
@@ -174,6 +175,7 @@ export function App() {
           <button onClick={() => void exportRecords('csv')}>导出训练记录（CSV）</button></div>
         {exportMessage && <p role="status">{exportMessage}</p>}
         <BackupControls onRestored={(session) => setVault(session.state, session.key, session.salt)} />
+        <SecurityControls onChangePassword={async (next) => { if (!vault) throw new Error('保险库已锁定'); const session = await reencryptVaultWithPassword(vault, next); await forgetTodayKey(); const kept = await rememberTodayKey(session.key, toBase64(session.salt)); unlockDay.current = todayInTokyo(); setVault(session.state, session.key, session.salt); if (!kept) setAuthNotice('密码已修改；浏览器无法保存当天密钥，下次仍需输入密码。'); }} onDeleteVault={async () => { await forgetTodayKey(); localStorage.removeItem(VAULT_KEY); localStorage.removeItem('recomp.last-screen.v1'); unlockDay.current = null; setVault(null); setAuthNotice('本地保险库已删除。'); }} />
       </section>}
       {!['home', 'workout', 'settings', 'plans', 'nutrition'].includes(screen) && <p>此模块正在迁移。当前数据只保存在内存中，不会修改保险库。</p>}
     </main>

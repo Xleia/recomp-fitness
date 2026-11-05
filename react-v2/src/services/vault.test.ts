@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decryptVault, parseEnvelope, encryptedBackupJson, persistEncryptedVault, restoreEncryptedBackup, toBase64, unlockEncryptedVault } from './vault';
+import { decryptVault, parseEnvelope, encryptedBackupJson, persistEncryptedVault, restoreEncryptedBackup, toBase64, unlockEncryptedVault, reencryptVaultWithPassword } from './vault';
 
 const aad = new TextEncoder().encode('RECOMP|encrypted-vault|v2');
 const encoder = new TextEncoder();
@@ -21,7 +21,18 @@ async function legacyEnvelope(value: unknown) {
   };
 }
 
+class MemoryStorage implements Storage { data=new Map<string,string>(); get length(){return this.data.size} clear(){this.data.clear()} key(i:number){return [...this.data.keys()][i]??null} getItem(k:string){return this.data.get(k)??null} removeItem(k:string){this.data.delete(k)} setItem(k:string,v:string){this.data.set(k,String(v))} }
+
 describe('legacy encrypted vault compatibility', () => {
+
+  it('changes the vault password by re-encrypting without altering the state', async () => {
+    const state={schema:2,profile:{},settings:{},measurements:[],workouts:{},nutrition:{},keep:{value:1}};
+    const storage=new MemoryStorage();
+    const next=await reencryptVaultWithPassword(state,'new secure password',storage);
+    expect(await decryptVault(parseEnvelope(storage.getItem('recomp.encrypted.v2')!), 'new secure password')).toEqual(state);
+    await expect(decryptVault(parseEnvelope(storage.getItem('recomp.encrypted.v2')!), 'test-only password')).rejects.toThrow();
+    expect(next.state).toEqual(state);
+  });
   it('decrypts an AES-GCM vault without dropping unrecognized fields', async () => {
     const state = {
       schema: 2, profile: { created: '2026-01-01' }, settings: { start: '2026-01-05' },
