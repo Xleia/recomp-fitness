@@ -20,3 +20,12 @@ test('unlocks a synthetic legacy vault, restores within the day, and honors manu
  await page.getByRole('button',{name:'锁定'}).click();await expect(page.getByLabel('保险库密码')).toBeVisible();
  await page.reload();await expect(page.getByRole('button',{name:'解锁本地保险库'})).toBeVisible();await context.close();
 });
+
+test('migrates synthetic legacy records into encrypted storage before clearing source',async({browser})=>{
+ const context=await browser.newContext({serviceWorkers:'allow'}),page=await context.newPage();
+ await page.goto('/recomp-fitness/react-v2/');
+ await page.evaluate(()=>localStorage.setItem('recomp8week',JSON.stringify({measures:[{date:'2026-01-02',weight:72,waist:81}],workouts:[{date:'2026-01-03',day:5,title:'旧版训练',completed:1,entries:[{exercise:'卧推',sets:[{w:50,r:8,done:true}]}]}],food:{a:{date:'2026-01-02',kcal:1800,protein:120,memo:'测试'}}})));
+ await page.reload();await expect(page.getByLabel('设置新保险库密码')).toBeVisible();await page.getByLabel('设置新保险库密码').fill('synthetic migration password');await page.getByRole('button',{name:'解锁本地保险库'}).click();await expect(page.getByRole('heading',{name:'总览'})).toBeVisible();
+ const keys=await page.evaluate(()=>({legacy:localStorage.getItem('recomp8week'),vault:localStorage.getItem('recomp.encrypted.v2')}));
+ expect(keys.legacy).toBeNull();expect(keys.vault).toContain('recomp-encrypted-vault');await context.close();
+});
