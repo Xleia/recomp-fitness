@@ -6,6 +6,7 @@ import { PlanView } from '../features/plans/PlanView';
 import { PlanManager } from '../features/plans/PlanManager';
 import { listNutritionDays } from '../features/nutrition/selectors';
 import { NutritionPage } from '../features/nutrition/NutritionPage';
+import { BackupControls } from '../features/settings/BackupControls';
 import type { Food } from '../features/nutrition/catalog';
 import { calculateMacros } from '../features/nutrition/catalog';
 import { unlockEncryptedVault, parseEnvelope, persistEncryptedVault, VAULT_KEY } from '../services/vault';
@@ -116,6 +117,7 @@ export function App() {
         <div className="export-actions"><button onClick={() => void exportRecords('json')}>导出训练记录（JSON）</button>
           <button onClick={() => void exportRecords('csv')}>导出训练记录（CSV）</button></div>
         {exportMessage && <p role="status">{exportMessage}</p>}
+        <BackupControls onRestored={(session) => setVault(session.state, session.key, session.salt)} />
       </section>}
       {!['home', 'workout', 'settings', 'plans', 'nutrition'].includes(screen) && <p>此模块正在迁移。当前数据只保存在内存中，不会修改保险库。</p>}
     </main>
