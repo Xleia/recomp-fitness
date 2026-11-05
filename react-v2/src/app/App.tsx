@@ -16,6 +16,7 @@ import type { RecompState } from '../types/state';
 import type { Food } from '../features/nutrition/catalog';
 import { calculateMacros } from '../features/nutrition/catalog';
 import { unlockEncryptedVault, unlockWithKey, parseEnvelope, persistEncryptedVault, reencryptVaultWithPassword, toBase64, VAULT_KEY } from '../services/vault';
+import { LEGACY_STORAGE_KEY, migrateLegacyState } from '../services/legacy-migration';
 import { rememberTodayKey, readTodayKey, forgetTodayKey, todayInTokyo } from '../services/daily-unlock';
 import { useAppStore } from '../stores/app';
 import './app.css';
@@ -93,7 +94,18 @@ export function App() {
     event.preventDefault(); setError('');
     try {
       const raw = localStorage.getItem(VAULT_KEY);
-      if (!raw) throw new Error('尚未找到 RECOMP 加密保险库。迁移入口尚未开放，请继续使用旧版。');
+      if (!raw) {
+        const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
+        if (!legacy) throw new Error('尚未找到 RECOMP 加密保险库或旧版记录。');
+        if (password.length < 12 || password.length > 200) throw new Error('请设置至少12个字符的新保险库密码，以加密迁移的旧记录。');
+        const migrated = migrateLegacyState(legacy, todayInTokyo());
+        const session = await reencryptVaultWithPassword(migrated, password);
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
+        setVault(session.state, session.key, session.salt); unlockDay.current = todayInTokyo(); setPassword('');
+        const remembered = await rememberTodayKey(session.key, toBase64(session.salt));
+        setAuthNotice(remembered ? '旧版记录已在本机加密迁移；当天可免重复输入密码。' : '旧版记录已在本机加密迁移；浏览器无法保存当天密钥。');
+        return;
+      }
       const session = await unlockEncryptedVault(parseEnvelope(raw), password);
       setVault(session.state, session.key, session.salt); unlockDay.current = todayInTokyo(); setPassword('');
       const remembered = await rememberTodayKey(session.key, toBase64(session.salt));
@@ -102,8 +114,8 @@ export function App() {
       setError(e instanceof Error ? e.message : '无法解锁保险库');
     }
   }
-  if (!vault) return <main className="auth"><h1>RECOMP 2.0</h1><p>React 迁移预览 · 数据尚未迁移</p>
-    {authChecking && <p role="status">正在检查当天的本地解锁状态…</p>}<form onSubmit={unlock}><label>保险库密码<input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></label><button>解锁本地保险库</button></form>
+  if (!vault) return <main className="auth"><h1>RECOMP 2.0</h1><p>React 迁移预览 · 数据只在本机处理</p>{localStorage.getItem(LEGACY_STORAGE_KEY)&&!localStorage.getItem(VAULT_KEY)&&<p className="notice">检测到旧版本地记录。首次解锁时请设置至少12个字符的新密码，记录会先加密保存到本机，成功后再清除旧数据。</p>}
+    {authChecking && <p role="status">正在检查当天的本地解锁状态…</p>}<form onSubmit={unlock}><label>{localStorage.getItem(LEGACY_STORAGE_KEY)&&!localStorage.getItem(VAULT_KEY)?'设置新保险库密码':'保险库密码'}<input type="password" autoComplete={localStorage.getItem(LEGACY_STORAGE_KEY)&&!localStorage.getItem(VAULT_KEY)?'new-password':'current-password'} minLength={localStorage.getItem(LEGACY_STORAGE_KEY)&&!localStorage.getItem(VAULT_KEY)?12:undefined} value={password} onChange={(e) => setPassword(e.target.value)} required /></label><button>解锁本地保险库</button></form>
     {error && <p role="alert">{error}</p>}{authNotice && <p role="status">{authNotice}</p>}<p className="notice">此预览不会写入、迁移或删除本地记录。请继续通过旧版 RECOMP 管理数据。</p></main>;
   const workouts = listWorkoutRecords(vault.workouts);
   const nutritionDays = listNutritionDays(vault.nutrition);
