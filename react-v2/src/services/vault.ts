@@ -47,7 +47,7 @@ async function deriveKey(password: string, salt: Uint8Array) {
   const base = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
   return crypto.subtle.deriveKey(
     { name: 'PBKDF2', salt, iterations: ITERATIONS, hash: 'SHA-256' },
-    base, { name: 'AES-GCM', length: 256 }, false, ['decrypt'],
+    base, { name: 'AES-GCM', length: 256 }, false, ['decrypt', 'encrypt'],
   );
 }
 function assertCompatibleState(value: unknown): asserts value is RecompState {
@@ -62,16 +62,41 @@ function assertCompatibleState(value: unknown): asserts value is RecompState {
       Object.keys(state.nutrition).length > 10000) throw new Error('备份数据超过安全限制');
 }
 
-export async function decryptVault(envelope: VaultEnvelope, password: string): Promise<RecompState> {
-  const key = await deriveKey(password, fromBase64(envelope.salt));
+export interface VaultSession {
+  state: RecompState;
+  key: CryptoKey;
+  salt: Uint8Array;
+}
+export async function unlockEncryptedVault(envelope: VaultEnvelope, password: string): Promise<VaultSession> {
+  const salt = fromBase64(envelope.salt);
+  const key = await deriveKey(password, salt);
   const bytes = await crypto.subtle.decrypt(
     { name: 'AES-GCM', iv: fromBase64(envelope.iv), additionalData: AAD, tagLength: 128 },
     key, fromBase64(envelope.ciphertext),
   );
   const value: unknown = JSON.parse(dec.decode(bytes));
   assertCompatibleState(value);
-  // Unknown fields are deliberately kept intact for forward/backward compatibility.
-  return value;
+  return { state: value, key, salt };
+}
+export async function decryptVault(envelope: VaultEnvelope, password: string): Promise<RecompState> {
+  return (await unlockEncryptedVault(envelope, password)).state;
+}
+export async function persistEncryptedVault(
+  state: RecompState, key: CryptoKey, salt: Uint8Array, storage: Storage = localStorage,
+): Promise<void> {
+  assertCompatibleState(state);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const bytes = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv, additionalData: AAD, tagLength: 128 },
+    key, enc.encode(JSON.stringify(state)),
+  );
+  const envelope: VaultEnvelope = {
+    format: 'recomp-encrypted-vault', version: 2, kdf: 'PBKDF2-SHA256',
+    iterations: 600000, cipher: 'AES-256-GCM',
+    salt: toBase64(salt), iv: toBase64(iv), ciphertext: toBase64(new Uint8Array(bytes)),
+  };
+  // One localStorage setItem replaces the envelope atomically; caller updates memory only after success.
+  storage.setItem(VAULT_KEY, JSON.stringify(envelope));
 }
 
 export async function readEncryptedVault(storage: Storage = localStorage): Promise<VaultEnvelope | null> {

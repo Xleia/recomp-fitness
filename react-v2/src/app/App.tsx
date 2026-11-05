@@ -3,7 +3,7 @@ import { completedWorkload, formatWorkload, listWorkoutRecords } from '../featur
 import { createTrainingExport, saveTrainingExport, type DateRange } from '../features/workout/export';
 import { loadDefaultPlan, resolveTrainingPlan, type TrainingPlan } from '../features/plans/plan-data';
 import { PlanView } from '../features/plans/PlanView';
-import { decryptVault, parseEnvelope, VAULT_KEY } from '../services/vault';
+import { unlockEncryptedVault, parseEnvelope, persistEncryptedVault, VAULT_KEY } from '../services/vault';
 import { useAppStore } from '../stores/app';
 import './app.css';
 
@@ -33,8 +33,8 @@ export function App() {
     try {
       const raw = localStorage.getItem(VAULT_KEY);
       if (!raw) throw new Error('尚未找到 RECOMP 加密保险库。迁移入口尚未开放，请继续使用旧版。');
-      const state = await decryptVault(parseEnvelope(raw), password);
-      setVault(state); setPassword('');
+      const session = await unlockEncryptedVault(parseEnvelope(raw), password);
+      setVault(session.state, session.key, session.salt); setPassword('');
     } catch (e) {
       setError(e instanceof Error ? e.message : '无法解锁保险库');
     }
