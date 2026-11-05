@@ -3,7 +3,7 @@ import type{WorkoutRecord}from'../../types/state';import type{TrainingPlan}from'
 import{completedWorkload,formatWorkload,listWorkoutRecords}from'./selectors';import{buildWorkoutRecord,makeWorkoutDraft,planDayForDate,trainingWeek,type WorkoutDraftItem}from'./workout-editor';
 function today(){const p=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const g=(k:string)=>p.find(x=>x.type===k)?.value??'';return g('year')+'-'+g('month')+'-'+g('day');}
 export function WorkoutPage({workouts,plan,startDate,onSave}:{workouts:Record<string,WorkoutRecord>;plan:TrainingPlan|null;startDate:unknown;onSave:(record:WorkoutRecord)=>Promise<void>}){
- const[date,setDate]=useState(today),[draft,setDraft]=useState<WorkoutDraftItem[]>([]),[note,setNote]=useState(''),[duration,setDuration]=useState(''),[status,setStatus]=useState(''),[error,setError]=useState('');
+ const[expanded,setExpanded]=useState<Record<number,boolean>>({}),[date,setDate]=useState(today),[draft,setDraft]=useState<WorkoutDraftItem[]>([]),[note,setNote]=useState(''),[duration,setDuration]=useState(''),[status,setStatus]=useState(''),[error,setError]=useState('');
  const day=planDayForDate(plan,date,startDate),weekday=new Date(date+'T12:00:00Z').getUTCDay(),week=plan?trainingWeek(startDate,date,plan.duration_weeks):1,saved=workouts[date];
  useEffect(()=>{setDraft(makeWorkoutDraft(saved,day));setNote(typeof saved?.note==='string'?saved.note:'');setDuration(typeof saved?.duration_minutes==='number'?String(saved.duration_minutes):'');},[date,plan,workouts]);
  function change(i:number,j:number,key:string,value:unknown){setDraft(xs=>xs.map((x,k)=>k===i?{...x,sets:x.sets.map((s,n)=>n===j?{...s,[key]:value}:s)}:x));}
@@ -23,7 +23,7 @@ export function WorkoutPage({workouts,plan,startDate,onSave}:{workouts:Record<st
  <label><input type="checkbox" checked={set.done===true} onChange={e=>change(i,j,'done',e.target.checked)}/> 已完成</label>
  <button type="button" onClick={()=>setDraft(xs=>xs.map((x,k)=>k===i?{...x,sets:x.sets.filter((_,n)=>n!==j)}:x))}>删除组</button></div>)}
  <button type="button" onClick={()=>setDraft(xs=>xs.map((x,k)=>k===i?{...x,sets:[...x.sets,{w:null,r:null,done:false}]}:x))}>增加一组</button>
- </article>;})}
+ </details></article>;})}
  {draft.length>0&&<article className="workout-card"><label>训练时长（分钟）<input type="number" min="1" max="1440" step="1" value={duration} onChange={e=>setDuration(e.target.value)}/></label><label>训练备注<textarea maxLength={500} value={note} onChange={e=>setNote(e.target.value)}/></label><button type="button" onClick={()=>void save()}>保存实际训练记录</button></article>}
  {status&&<p role="status">{status}</p>}{error&&<p role="alert">{error}</p>}
  <h3>历史训练</h3>{history.length===0?<p>还没有训练记录。</p>:history.slice(0,30).map(({key,record})=>{const w=completedWorkload(record);return <button className="food-pick" type="button" key={key} onClick={()=>setDate(String(record.date))}>{record.date} · {record.title||'训练记录'} · 完成 {w.completedSets} 组 · {formatWorkload(w.volumeKg)} kg</button>;})}
