@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decryptVault, parseEnvelope, toBase64 } from './vault';
+import { decryptVault, parseEnvelope, persistEncryptedVault, toBase64, unlockEncryptedVault } from './vault';
 
 const aad = new TextEncoder().encode('RECOMP|encrypted-vault|v2');
 const encoder = new TextEncoder();
@@ -43,4 +43,38 @@ describe('legacy encrypted vault compatibility', () => {
     expect(() => parseEnvelope({ ...valid, iterations: 1 })).toThrow();
     expect(() => parseEnvelope({ ...valid, iv: toBase64(new Uint8Array(8)) })).toThrow();
   });
+  it('writes a modified vault using the same encrypted v2 envelope without mutating input', async () => {
+    const original = {
+      schema: 2, profile: {}, settings: {}, measurements: [], workouts: {}, nutrition: {},
+      plan_library: { schema_version: 1, versions: [], active_entry_id: null },
+    };
+    const session = await unlockEncryptedVault(await legacyEnvelope(original), 'test-only password');
+    const candidate = { ...session.state, plan_library: {
+      schema_version: 1, versions: [{ entry_id: 'local-1', imported_at: '2026-11-05T00:00:00.000Z', plan: { plan_id: 'new' } }],
+      active_entry_id: 'local-1',
+    } };
+    const data = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => data.get(key) ?? null,
+      setItem: (key: string, value: string) => { data.set(key, value); },
+    } as Storage;
+    await persistEncryptedVault(candidate, session.key, session.salt, storage);
+    const persisted = data.values().next().value;
+    expect(parseEnvelope(persisted).format).toBe('recomp-encrypted-vault');
+    expect(await decryptVault(parseEnvelope(persisted), 'test-only password')).toEqual(candidate);
+    expect(session.state).toEqual(original);
+  });
+
+  it('keeps stored bytes unchanged if encrypted persistence fails', async () => {
+    const original = { schema: 2, profile: {}, settings: {}, measurements: [], workouts: {}, nutrition: {} };
+    const session = await unlockEncryptedVault(await legacyEnvelope(original), 'test-only password');
+    let saved = 'old-envelope';
+    const storage = {
+      getItem: () => saved,
+      setItem: () => { throw new Error('quota'); },
+    } as unknown as Storage;
+    await expect(persistEncryptedVault({ ...session.state }, session.key, session.salt, storage)).rejects.toThrow('quota');
+    expect(saved).toBe('old-envelope');
+  });
+
 });
