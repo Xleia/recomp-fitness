@@ -116,7 +116,7 @@ export function App() {
   }
   if (!vault) return <main className="auth"><h1>RECOMP 2.0</h1><p>React 迁移预览 · 数据只在本机处理</p>{localStorage.getItem(LEGACY_STORAGE_KEY)&&!localStorage.getItem(VAULT_KEY)&&<p className="notice">检测到旧版本地记录。首次解锁时请设置至少12个字符的新密码，记录会先加密保存到本机，成功后再清除旧数据。</p>}
     {authChecking && <p role="status">正在检查当天的本地解锁状态…</p>}<form onSubmit={unlock}><label>{localStorage.getItem(LEGACY_STORAGE_KEY)&&!localStorage.getItem(VAULT_KEY)?'设置新保险库密码':'保险库密码'}<input type="password" autoComplete={localStorage.getItem(LEGACY_STORAGE_KEY)&&!localStorage.getItem(VAULT_KEY)?'new-password':'current-password'} minLength={localStorage.getItem(LEGACY_STORAGE_KEY)&&!localStorage.getItem(VAULT_KEY)?12:undefined} value={password} onChange={(e) => setPassword(e.target.value)} required /></label><button>解锁本地保险库</button></form>
-    {error && <p role="alert">{error}</p>}{authNotice && <p role="status">{authNotice}</p>}<p className="notice">此预览不会写入、迁移或删除本地记录。请继续通过旧版 RECOMP 管理数据。</p></main>;
+    {error && <p role="alert">{error}</p>}{authNotice && <p role="status">{authNotice}</p>}<p className="notice">所有记录仅在本机处理；输入密码不会向服务器发送数据。</p></main>;
   const workouts = listWorkoutRecords(vault.workouts);
   const nutritionDays = listNutritionDays(vault.nutrition);
   const foodLibrary = readFoodLibrary(vault);

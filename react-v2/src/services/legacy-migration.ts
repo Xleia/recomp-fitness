@@ -1,6 +1,6 @@
 import type {RecompState} from '../types/state';
 export const LEGACY_STORAGE_KEY='recomp8week';
-const dateOk=(x:unknown):x is string=>typeof x==='string'&&/^\\d{4}-\\d{2}-\\d{2}$/.test(x);
+const dateOk=(x:unknown):x is string=>typeof x==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x);
 const obj=(x:unknown):Record<string,unknown>=>x&&typeof x==='object'&&!Array.isArray(x)?x as Record<string,unknown>:{};
 export function migrateLegacyState(raw:string,today:string):RecompState{
  const old=JSON.parse(raw) as Record<string,unknown>;if(!old||typeof old!=='object'||Array.isArray(old))throw Error('旧版记录数据异常');
