@@ -3,16 +3,16 @@ import type{WorkoutRecord}from'../../types/state';import type{TrainingPlan}from'
 import{completedWorkload,formatWorkload,listWorkoutRecords}from'./selectors';import{buildWorkoutRecord,makeWorkoutDraft,planDayForDate,trainingWeek,type WorkoutDraftItem}from'./workout-editor';
 function today(){const p=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const g=(k:string)=>p.find(x=>x.type===k)?.value??'';return g('year')+'-'+g('month')+'-'+g('day');}
 export function WorkoutPage({workouts,plan,startDate,onSave}:{workouts:Record<string,WorkoutRecord>;plan:TrainingPlan|null;startDate:unknown;onSave:(record:WorkoutRecord)=>Promise<void>}){
- const[expanded,setExpanded]=useState<Record<number,boolean>>({}),[date,setDate]=useState(today),[draft,setDraft]=useState<WorkoutDraftItem[]>([]),[note,setNote]=useState(''),[duration,setDuration]=useState(''),[status,setStatus]=useState(''),[error,setError]=useState('');
+ const[date,setDate]=useState(today),[draft,setDraft]=useState<WorkoutDraftItem[]>([]),[note,setNote]=useState(''),[duration,setDuration]=useState(''),[status,setStatus]=useState(''),[error,setError]=useState('');
  const day=planDayForDate(plan,date,startDate),weekday=new Date(date+'T12:00:00Z').getUTCDay(),week=plan?trainingWeek(startDate,date,plan.duration_weeks):1,saved=workouts[date];
- useEffect(()=>{setExpanded({});setDraft(makeWorkoutDraft(saved,day));setNote(typeof saved?.note==='string'?saved.note:'');setDuration(typeof saved?.duration_minutes==='number'?String(saved.duration_minutes):'');},[date,plan,workouts]);
+ useEffect(()=>{setDraft(makeWorkoutDraft(saved,day));setNote(typeof saved?.note==='string'?saved.note:'');setDuration(typeof saved?.duration_minutes==='number'?String(saved.duration_minutes):'');},[date,plan,workouts]);
  function change(i:number,j:number,key:string,value:unknown){setDraft(xs=>xs.map((x,k)=>k===i?{...x,sets:x.sets.map((s,n)=>n===j?{...s,[key]:value}:s)}:x));}
  async function save(){setError('');setStatus('');try{const record=buildWorkoutRecord({date,day:weekday,template:day,plan,week,existing:saved,items:draft,note,durationMinutes:duration.trim()===''?null:Number(duration)});await onSave(record);setStatus('训练记录已加密保存。');}catch(e){setError(e instanceof Error?e.message:'保存失败，原记录保持不变');}}
  const history=listWorkoutRecords(workouts);
  return <section aria-label="训练记录与历史"><h2>训练记录</h2><label>训练日期<input type="date" value={date} onChange={e=>setDate(e.target.value)}/></label>
  {day&&<p>{day.name} · 第 {week} / {plan?.duration_weeks??'—'} 周 · 保存时只记录你填写的实际完成数据。</p>}
  {!day&&!saved&&<p>该日期没有计划安排；可从历史训练选择已有日期查看记录。</p>}
- {draft.length===0?<p>{saved?'该日期没有训练动作。':'当前没有可记录动作。'}</p>:draft.map((item,i)=>{const planned=day?.exercises.find(x=>x.exercise_id===item.exercise_id);return <article className="workout-card" key={item.exercise_id??i}><details open={expanded[i]===true} onToggle={e=>setExpanded(x=>({...x,[i]:e.currentTarget.open}))}><summary>{item.name} · {item.sets.length} 组 · 已完成 {item.sets.filter(s=>s.done===true).length} 组</summary>
+ {draft.length===0?<p>{saved?'该日期没有训练动作。':'当前没有可记录动作。'}</p>:draft.map((item,i)=>{const planned=day?.exercises.find(x=>x.exercise_id===item.exercise_id);return <article className="workout-card" key={item.exercise_id??i}><details><summary>{item.name} · {item.sets.length} 组 · 已完成 {item.sets.filter(s=>s.done===true).length} 组</summary>
  <label>动作名称<input value={item.name} onChange={e=>setDraft(xs=>xs.map((x,k)=>k===i?{...x,name:e.target.value}:x))}/></label>
  {planned&&<p>计划参考：{planned.sets} 组 × {repsLabel(planned.reps)}；休息 {restLabel(planned.rest_seconds)}</p>}
  {item.sets.map((set,j)=><div className="set-row" key={j}><strong>第 {j+1} 组</strong>
