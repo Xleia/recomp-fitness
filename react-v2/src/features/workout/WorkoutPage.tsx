@@ -5,7 +5,7 @@ function today(){const p=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',
 export function WorkoutPage({workouts,plan,startDate,onSave}:{workouts:Record<string,WorkoutRecord>;plan:TrainingPlan|null;startDate:unknown;onSave:(record:WorkoutRecord)=>Promise<void>}){
  const[expanded,setExpanded]=useState<Record<number,boolean>>({}),[date,setDate]=useState(today),[draft,setDraft]=useState<WorkoutDraftItem[]>([]),[note,setNote]=useState(''),[duration,setDuration]=useState(''),[status,setStatus]=useState(''),[error,setError]=useState('');
  const day=planDayForDate(plan,date,startDate),weekday=new Date(date+'T12:00:00Z').getUTCDay(),week=plan?trainingWeek(startDate,date,plan.duration_weeks):1,saved=workouts[date];
- useEffect(()=>{setDraft(makeWorkoutDraft(saved,day));setNote(typeof saved?.note==='string'?saved.note:'');setDuration(typeof saved?.duration_minutes==='number'?String(saved.duration_minutes):'');},[date,plan,workouts]);
+ useEffect(()=>{setExpanded({});setDraft(makeWorkoutDraft(saved,day));setNote(typeof saved?.note==='string'?saved.note:'');setDuration(typeof saved?.duration_minutes==='number'?String(saved.duration_minutes):'');},[date,plan,workouts]);
  function change(i:number,j:number,key:string,value:unknown){setDraft(xs=>xs.map((x,k)=>k===i?{...x,sets:x.sets.map((s,n)=>n===j?{...s,[key]:value}:s)}:x));}
  async function save(){setError('');setStatus('');try{const record=buildWorkoutRecord({date,day:weekday,template:day,plan,week,existing:saved,items:draft,note,durationMinutes:duration.trim()===''?null:Number(duration)});await onSave(record);setStatus('训练记录已加密保存。');}catch(e){setError(e instanceof Error?e.message:'保存失败，原记录保持不变');}}
  const history=listWorkoutRecords(workouts);
