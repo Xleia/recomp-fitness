@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { decryptVault, parseEnvelope, VAULT_KEY } from '../services/vault';
 import { useAppStore } from '../stores/app';
 import './app.css';
@@ -13,7 +13,7 @@ export function App() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  async function unlock(event: React.FormEvent) {
+  async function unlock(event: FormEvent) {
     event.preventDefault(); setError('');
     try {
       const raw = localStorage.getItem(VAULT_KEY);
