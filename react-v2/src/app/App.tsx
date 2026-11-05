@@ -4,7 +4,6 @@ import { createTrainingExport, saveTrainingExport, type DateRange } from '../fea
 import { loadDefaultPlan, resolveTrainingPlan, type TrainingPlan } from '../features/plans/plan-data';
 import { PlanView } from '../features/plans/PlanView';
 import { PlanManager } from '../features/plans/PlanManager';
-import { PlanManager } from '../features/plans/PlanManager';
 import { unlockEncryptedVault, parseEnvelope, persistEncryptedVault, VAULT_KEY } from '../services/vault';
 import { useAppStore } from '../stores/app';
 import './app.css';
@@ -15,8 +14,6 @@ export function App() {
   const vault = useAppStore((s) => s.vault);
   const screen = useAppStore((s) => s.screen);
   const setVault = useAppStore((s) => s.setVault);
-  const vaultKey = useAppStore((s) => s.vaultKey);
-  const vaultSalt = useAppStore((s) => s.vaultSalt);
   const vaultKey = useAppStore((s) => s.vaultKey);
   const vaultSalt = useAppStore((s) => s.vaultSalt);
   const setScreen = useAppStore((s) => s.setScreen);
