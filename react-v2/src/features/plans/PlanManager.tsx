@@ -10,7 +10,7 @@ export function PlanManager({ vault, onCommit }: {
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<TrainingPlan | null>(null);
-  const [selected, setSelected] = useState('');
+  const [selected, setSelected] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -69,7 +69,7 @@ export function PlanManager({ vault, onCommit }: {
     <h2>计划导入与版本管理</h2>
     <p>导入的计划仅保存在本地加密保险库。切换计划不会更改历史训练记录。</p>
     <label>已保存计划版本
-      <select value={selected || library.active_entry_id || ''} onChange={(e) => setSelected(e.target.value)} disabled={busy}>
+      <select value={selected ?? (library.active_entry_id || '')} onChange={(e) => setSelected(e.target.value)} disabled={busy}>
         <option value="">系统默认计划</option>
         {library.versions.map((entry) => <option value={entry.entry_id} key={entry.entry_id}>
           {(entry.entry_id === library.active_entry_id ? '[当前启用] ' : '') + entry.plan.name + ' · v' + entry.plan.plan_version + ' · ' + entry.imported_at}
