@@ -18,8 +18,8 @@ export function WorkoutPage({workouts,plan,startDate,onSave}:{workouts:Record<st
  {item.sets.map((set,j)=><div className="set-row" key={j}><strong>第 {j+1} 组</strong>
  <label>实际重量（kg）<input type="number" min="0" max="1000" step="0.1" value={set.w??''} onChange={e=>change(i,j,'w',e.target.value===''?null:Number(e.target.value))}/></label>
  <label>实际次数<input type="number" min="0" max="1000" step="1" value={set.r??''} onChange={e=>change(i,j,'r',e.target.value===''?null:Number(e.target.value))}/></label>
- <label>RPE<input type="number" min="1" max="10" step="0.5" value={set.rpe??''} onChange={e=>change(i,j,'rpe',e.target.value===''?null:Number(e.target.value))}/></label>
- <label>RIR<input type="number" min="0" max="20" step="1" value={set.rir??''} onChange={e=>change(i,j,'rir',e.target.value===''?null:Number(e.target.value))}/></label>
+ <label>RPE<input type="number" min="1" max="10" step="0.5" value={typeof set.rpe==='number'?set.rpe:''} onChange={e=>change(i,j,'rpe',e.target.value===''?null:Number(e.target.value))}/></label>
+ <label>RIR<input type="number" min="0" max="20" step="1" value={typeof set.rir==='number'?set.rir:''} onChange={e=>change(i,j,'rir',e.target.value===''?null:Number(e.target.value))}/></label>
  <label><input type="checkbox" checked={set.done===true} onChange={e=>change(i,j,'done',e.target.checked)}/> 已完成</label>
  <button type="button" onClick={()=>setDraft(xs=>xs.map((x,k)=>k===i?{...x,sets:x.sets.filter((_,n)=>n!==j)}:x))}>删除组</button></div>)}
  <button type="button" onClick={()=>setDraft(xs=>xs.map((x,k)=>k===i?{...x,sets:[...x.sets,{w:null,r:null,done:false}]}:x))}>增加一组</button>
