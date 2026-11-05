@@ -134,7 +134,7 @@ export function parseTrainingPlan(source: unknown): TrainingPlan {
   return plan as TrainingPlan;
 }
 export async function loadDefaultPlan(): Promise<TrainingPlan> {
-  const response = await fetch(new URL('plans/default-plan.json', import.meta.env.BASE_URL));
+  const response = await fetch(new URL('plans/default-plan.json', window.location.origin + import.meta.env.BASE_URL));
   if (!response.ok) throw new Error('系统默认训练计划加载失败');
   return parseTrainingPlan(await response.json());
 }
