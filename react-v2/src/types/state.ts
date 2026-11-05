@@ -1,11 +1,12 @@
 export interface WorkoutSet {
-  w?: number;
-  r?: number;
+  w?: number | null;
+  r?: number | null;
   done?: boolean;
   [key: string]: unknown;
 }
 export interface WorkoutItem {
   name?: string;
+  exercise_id?: string;
   sets?: WorkoutSet[];
   [key: string]: unknown;
 }
@@ -14,6 +15,7 @@ export interface WorkoutRecord {
   day?: number;
   title?: string;
   name?: string;
+  bodyParts?: string | string[];
   items?: WorkoutItem[];
   [key: string]: unknown;
 }
