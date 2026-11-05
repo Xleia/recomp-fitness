@@ -1,0 +1,32 @@
+name: React v2 foundation
+
+on:
+  push:
+    branches: [refactor/react-v2]
+    paths:
+      - 'react-v2/**'
+      - '.github/workflows/react-v2.yml'
+  pull_request:
+    paths:
+      - 'react-v2/**'
+      - '.github/workflows/react-v2.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: react-v2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: react-v2/package.json
+      - run: npm install --no-audit --no-fund
+      - run: npm test
+      - run: npm run build
