@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { completedWorkload, formatWorkload, listWorkoutRecords } from '../features/workout/selectors';
+import { createTrainingExport, saveTrainingExport, type DateRange } from '../features/workout/export';
 import { decryptVault, parseEnvelope, VAULT_KEY } from '../services/vault';
 import { useAppStore } from '../stores/app';
 import './app.css';
@@ -13,6 +14,9 @@ export function App() {
   const setScreen = useAppStore((s) => s.setScreen);
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [exportMessage, setExportMessage] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   async function unlock(event: FormEvent) {
     event.preventDefault(); setError('');
@@ -29,6 +33,18 @@ export function App() {
     <form onSubmit={unlock}><label>保险库密码<input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></label><button>解锁本地保险库</button></form>
     {error && <p role="alert">{error}</p>}<p className="notice">此预览不会写入、迁移或删除本地记录。请继续通过旧版 RECOMP 管理数据。</p></main>;
   const workouts = listWorkoutRecords(vault.workouts);
+
+  async function exportRecords(kind: 'json' | 'csv') {
+    setExportMessage('');
+    try {
+      const payload = createTrainingExport(vault.workouts, { startDate, endDate } satisfies DateRange);
+      if (!payload.record_count) { setExportMessage('所选日期范围内没有训练记录。'); return; }
+      const filename = await saveTrainingExport(kind, payload);
+      setExportMessage('已生成 ' + filename + '。这是未加密文件，请妥善保管。');
+    } catch (e) {
+      setExportMessage(e instanceof Error ? e.message : '文件生成失败，请重试。');
+    }
+  }
   return <div className="layout"><header><strong>RECOMP 2.0</strong><button onClick={() => setVault(null)}>锁定</button></header>
     <nav aria-label="主要功能">{screens.map((key, i) => <button key={key} aria-current={screen === key} onClick={() => setScreen(key)}>{labels[i]}</button>)}</nav>
     <main><h1>{labels[screens.indexOf(screen)]}</h1>
@@ -49,7 +65,15 @@ export function App() {
           </article>;
         })}
       </section>}
-      {!['home', 'workout'].includes(screen) && <p>此模块正在迁移。当前数据只保存在内存中，不会修改保险库。</p>}
+      {screen === 'settings' && <section aria-label="备份与恢复"><h2>数据管理 / 备份与恢复</h2>
+        <p className="notice">训练导出文件未加密，不会上传到服务器。请妥善保管；原加密完整备份与恢复仍由旧版入口处理。</p>
+        <div className="date-filter"><label>开始日期<input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></label>
+          <label>结束日期<input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></label></div>
+        <div className="export-actions"><button onClick={() => void exportRecords('json')}>导出训练记录（JSON）</button>
+          <button onClick={() => void exportRecords('csv')}>导出训练记录（CSV）</button></div>
+        {exportMessage && <p role="status">{exportMessage}</p>}
+      </section>}
+      {!['home', 'workout', 'settings'].includes(screen) && <p>此模块正在迁移。当前数据只保存在内存中，不会修改保险库。</p>}
     </main>
   </div>;
 }
