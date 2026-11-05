@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { completedWorkload, formatWorkload, listWorkoutRecords } from '../features/workout/selectors';
+import { WorkoutPage } from '../features/workout/WorkoutPage';
 import { createTrainingExport, saveTrainingExport, type DateRange } from '../features/workout/export';
 import { loadDefaultPlan, resolveTrainingPlan, type TrainingPlan } from '../features/plans/plan-data';
 import { PlanView } from '../features/plans/PlanView';
@@ -106,22 +107,11 @@ export function App() {
           const candidate = { ...vault, measurements: removeMeasurementDate(vault.measurements as Measurement[], date) };
           await commitVault(candidate);
         }} />}
-      {screen === 'workout' && <section aria-label="训练历史"><p>只读历史记录 · {workouts.length} 次训练。训练量只统计记录中 done=true 且有实际重量和次数的组。</p>
-        {workouts.length === 0 ? <p>当前保险库没有训练记录。</p> : workouts.map(({ key, record }) => {
-          const workload = completedWorkload(record);
-          return <article className="workout-card" key={key}>
-            <h2>{record.date + ' · ' + (record.title || record.name || '训练记录')}</h2>
-            {typeof record.bodyParts === 'string' && <p>{record.bodyParts}</p>}
-            <p>完成组数：{workload.completedSets}　完成训练量：{formatWorkload(workload.volumeKg)} kg</p>
-            {(record.items ?? []).map((item, exerciseIndex) => <div key={String(item.exercise_id ?? item.name ?? exerciseIndex)}>
-              <h3>{item.name || '未命名动作'}</h3>
-              <ol>{(item.sets ?? []).map((set, setIndex) => <li key={setIndex}>
-                {set.w == null ? '重量未记录' : String(set.w) + ' kg'} × {set.r == null ? '次数未记录' : String(set.r) + ' 次'} · {set.done === true ? '已完成' : '未完成'}
-              </li>)}</ol>
-            </div>)}
-          </article>;
-        })}
-      </section>}
+      {screen === 'workout' && <WorkoutPage workouts={vault.workouts} plan={planResolution.plan} startDate={vault.settings.start}
+        onSave={async (record) => {
+          const candidate = { ...vault, workouts: { ...vault.workouts, [String(record.date)]: record } };
+          await commitVault(candidate);
+        }} />}
       {screen === 'plans' && <><PlanView plan={planResolution.plan} imported={planResolution.imported} warning={planResolution.warning || planWarning} />
         <PlanManager vault={vault} onCommit={async (candidate) => {
           if (!vaultKey || !vaultSalt) throw new Error('保险库已锁定，请重新解锁');
