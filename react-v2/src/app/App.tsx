@@ -5,7 +5,9 @@ import { loadDefaultPlan, resolveTrainingPlan, type TrainingPlan } from '../feat
 import { PlanView } from '../features/plans/PlanView';
 import { PlanManager } from '../features/plans/PlanManager';
 import { listNutritionDays } from '../features/nutrition/selectors';
-import { NutritionHistory } from '../features/nutrition/NutritionHistory';
+import { NutritionPage } from '../features/nutrition/NutritionPage';
+import type { Food } from '../features/nutrition/catalog';
+import { calculateMacros } from '../features/nutrition/catalog';
 import { unlockEncryptedVault, parseEnvelope, persistEncryptedVault, VAULT_KEY } from '../services/vault';
 import { useAppStore } from '../stores/app';
 import './app.css';
@@ -65,7 +67,24 @@ export function App() {
   return <div className="layout"><header><strong>RECOMP 2.0</strong><button onClick={() => setVault(null)}>锁定</button></header>
     <nav aria-label="主要功能">{screens.map((key, i) => <button key={key} aria-current={screen === key} onClick={() => setScreen(key)}>{labels[i]}</button>)}</nav>
     <main><h1>{labels[screens.indexOf(screen)]}</h1>
-      {screen === 'nutrition' && <NutritionHistory days={nutritionDays} />}
+      {screen === 'nutrition' && <NutritionPage days={nutritionDays} onAdd={async (food: Food, amount: number, meal: number, date: string) => {
+        const dateValue = new Date(date + 'T12:00:00Z');
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(dateValue.valueOf()) || dateValue.toISOString().slice(0, 10) !== date ||
+            !Number.isInteger(meal) || meal < 0 || meal > 3) throw new Error('日期或餐次无效');
+        if (!vaultKey || !vaultSalt) throw new Error('保险库已锁定，请重新解锁');
+        const oldDay = vault.nutrition[date] && typeof vault.nutrition[date] === 'object' ? vault.nutrition[date] as Record<string, unknown> : {};
+        const savedItems = Array.isArray(oldDay.foodItems) ? oldDay.foodItems : [];
+        const foodItems = Array.from({ length: 4 }, (_, i) => Array.isArray(savedItems[i]) ? [...savedItems[i]] : []);
+        const row = { id: food.id, code: food.code, name: food.name, source: food.source, category: food.category,
+          baseUnit: food.baseUnit, per100: food.per100, amount, unit: food.baseUnit, factor: 1, snap: calculateMacros(food, amount) };
+        foodItems[meal].push(row);
+        const oldEntries = Array.isArray(oldDay.entries) ? oldDay.entries : [];
+        const entries = Array.from({ length: 4 }, (_, i) => oldEntries[i] && typeof oldEntries[i] === 'object'
+          ? oldEntries[i] : { kcal: null, protein: null, fat: null, carbs: null, note: '' });
+        const candidate = { ...vault, nutrition: { ...vault.nutrition, [date]: { ...oldDay, date, entries, foodItems } } };
+        await persistEncryptedVault(candidate, vaultKey, vaultSalt);
+        setVault(candidate, vaultKey, vaultSalt);
+      }} />}
       {screen === 'home' && <p>已读取训练 {workouts.length} 天、饮食 {Object.keys(vault.nutrition).length} 天、体测 {vault.measurements.length} 条。</p>}
       {screen === 'workout' && <section aria-label="训练历史"><p>只读历史记录 · {workouts.length} 次训练。训练量只统计记录中 done=true 且有实际重量和次数的组。</p>
         {workouts.length === 0 ? <p>当前保险库没有训练记录。</p> : workouts.map(({ key, record }) => {
