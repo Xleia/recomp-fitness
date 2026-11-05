@@ -46,6 +46,6 @@ test('edits a real workout set and opens the nutrition catalog',async({browser})
  await page.reload();await page.getByLabel('保险库密码').fill(password);await page.getByRole('button',{name:'解锁本地保险库'}).click();
  await page.getByRole('button',{name:'训练',exact:true}).click();await expect(page.getByRole('heading',{name:'训练记录'})).toBeVisible();
  const summary=page.locator('details summary').filter({hasText:'卧推'});await expect(summary).toBeVisible();await expect(page.getByLabel('实际重量（kg）')).toBeHidden();await summary.click();await expect(page.getByLabel('实际重量（kg）')).toHaveValue('50');
- await page.getByLabel('实际次数').fill('9');await page.getByRole('button',{name:'保存实际训练记录'}).click();await expect(page.getByRole('status')).toContainText('训练记录已加密保存');
+ await page.getByLabel('实际次数').fill('9');const save=page.getByText('保存实际训练记录',{exact:true});await expect(save).toBeVisible();await save.click();await expect(page.getByRole('status')).toContainText('训练记录已加密保存');
  await page.getByRole('button',{name:'饮食',exact:true}).click();await page.getByRole('button',{name:'食品数据库 / 添加食物'}).click();await expect(page.getByRole('heading',{name:'食品数据库与营养计算器'})).toBeVisible();await context.close();
 });
