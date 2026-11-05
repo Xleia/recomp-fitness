@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { calculateMacros, formatFoodName, loadFoodCatalog, searchFoodCatalog, type Food } from './catalog';
+import { calculateMacros, formatFoodName, loadFoodCatalog, searchFoodCatalog, type Food, type MacroFields } from './catalog';
 const tokyoDate = () => {
   const parts = new Intl.DateTimeFormat('en-CA', { timeZone:'Asia/Tokyo', year:'numeric', month:'2-digit', day:'2-digit' }).formatToParts(new Date());
   const get = (type:string) => parts.find((part) => part.type === type)?.value ?? '';
@@ -13,7 +13,7 @@ export function NutritionCatalog({onAdd}:{onAdd:(food:Food,amount:number,meal:nu
  useEffect(()=>{let active=true;void loadFoodCatalog().then((data)=>{if(active)setFoods(data);}).catch((e:unknown)=>{if(active)setError(e instanceof Error?e.message:'食品数据加载失败');});return()=>{active=false;};},[]);
  const categories=useMemo(()=>Array.from(new Set(foods.map((food)=>food.category))),[foods]);
  const matched=searchFoodCatalog(foods,query,category),results=expanded?matched:matched.slice(0,5);
- let macros=null;try{if(selected)macros=calculateMacros(selected,Number(amount));}catch{macros=null;}
+ let macros:MacroFields|null=null;try{if(selected)macros=calculateMacros(selected,Number(amount));}catch{macros=null;}
  async function add(){if(!selected||!macros){setError('请先选择食品并填写有效份量');return;}setError('');setStatus('');try{await onAdd(selected,Number(amount),Number(meal),date);setStatus('已添加到当天餐次并加密保存。');}catch(e){setError(e instanceof Error?e.message:'保存失败，原记录保持不变');}}
  return <section aria-label="食品数据库和营养计算器"><h2>食品数据库与营养计算器</h2>
   <p>离线 MEXT 日本食品成分数据。营养值按每 100 g 展示，并根据你填写的实际份量计算。</p>
