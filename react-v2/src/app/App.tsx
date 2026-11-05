@@ -1,6 +1,8 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { completedWorkload, formatWorkload, listWorkoutRecords } from '../features/workout/selectors';
 import { createTrainingExport, saveTrainingExport, type DateRange } from '../features/workout/export';
+import { loadDefaultPlan, resolveTrainingPlan, type TrainingPlan } from '../features/plans/plan-data';
+import { PlanView } from '../features/plans/PlanView';
 import { decryptVault, parseEnvelope, VAULT_KEY } from '../services/vault';
 import { useAppStore } from '../stores/app';
 import './app.css';
@@ -17,6 +19,14 @@ export function App() {
   const [exportMessage, setExportMessage] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [defaultPlan, setDefaultPlan] = useState<TrainingPlan | null>(null);
+  const [planWarning, setPlanWarning] = useState<string | null>(null);
+  useEffect(() => {
+    let current = true;
+    void loadDefaultPlan().then((plan) => { if (current) setDefaultPlan(plan); })
+      .catch((e: unknown) => { if (current) setPlanWarning(e instanceof Error ? e.message : '默认计划加载失败'); });
+    return () => { current = false; };
+  }, []);
 
   async function unlock(event: FormEvent) {
     event.preventDefault(); setError('');
@@ -33,6 +43,7 @@ export function App() {
     <form onSubmit={unlock}><label>保险库密码<input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></label><button>解锁本地保险库</button></form>
     {error && <p role="alert">{error}</p>}<p className="notice">此预览不会写入、迁移或删除本地记录。请继续通过旧版 RECOMP 管理数据。</p></main>;
   const workouts = listWorkoutRecords(vault.workouts);
+  const planResolution = resolveTrainingPlan(vault, defaultPlan);
 
   async function exportRecords(kind: 'json' | 'csv') {
     setExportMessage('');
@@ -65,6 +76,7 @@ export function App() {
           </article>;
         })}
       </section>}
+      {screen === 'plans' && <PlanView plan={planResolution.plan} imported={planResolution.imported} warning={planResolution.warning || planWarning} />}
       {screen === 'settings' && <section aria-label="备份与恢复"><h2>数据管理 / 备份与恢复</h2>
         <p className="notice">训练导出文件未加密，不会上传到服务器。请妥善保管；原加密完整备份与恢复仍由旧版入口处理。</p>
         <div className="date-filter"><label>开始日期<input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></label>
@@ -73,7 +85,7 @@ export function App() {
           <button onClick={() => void exportRecords('csv')}>导出训练记录（CSV）</button></div>
         {exportMessage && <p role="status">{exportMessage}</p>}
       </section>}
-      {!['home', 'workout', 'settings'].includes(screen) && <p>此模块正在迁移。当前数据只保存在内存中，不会修改保险库。</p>}
+      {!['home', 'workout', 'settings', 'plans'].includes(screen) && <p>此模块正在迁移。当前数据只保存在内存中，不会修改保险库。</p>}
     </main>
   </div>;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import raw from '../../public/plans/default-plan.json';
+import raw from '../../../public/plans/default-plan.json';
 import { parseTrainingPlan, resolveTrainingPlan } from './plan-data';
 
 describe('plan data compatibility', () => {

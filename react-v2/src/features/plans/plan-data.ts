@@ -6,7 +6,7 @@ export interface PlanExercise {
 }
 export interface PlanDay {
   weekday: number; day_id: string; name: string; type: 'strength' | 'basketball' | 'cardio' | 'rest';
-  muscle_groups: string[]; exercises: PlanExercise[]; [key: string]: unknown;
+  muscle_groups: string[]; description?: string; home_description?: string; duration_minutes?: number; exercises: PlanExercise[]; [key: string]: unknown;
 }
 export interface TrainingPlan {
   format: 'recomp-training-plan'; schema_version: 1; plan_id: string; plan_version: string;
