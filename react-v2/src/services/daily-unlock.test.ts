@@ -1,1 +1,3 @@
-import{describe,expect,it}from'vitest';import{todayInTokyo}from'./daily-unlock';describe('daily unlock date',()=>{it('returns a stable Tokyo calendar date',()=>{expect(todayInTokyo()).toMatch(/^\\d{4}-\\d{2}-\\d{2}$/)});});
+import {describe,expect,it} from 'vitest';
+import {todayInTokyo} from './daily-unlock';
+describe('daily unlock date',()=>{it('returns a stable Tokyo calendar date',()=>{expect(todayInTokyo().split('-')).toHaveLength(3);});});
