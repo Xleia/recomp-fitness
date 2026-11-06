@@ -29,7 +29,9 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npx playwright install --with-deps chromium
+        if: github.event_name == 'pull_request' || contains(toJSON(github.event.head_commit.modified), 'react-v2/')
       - run: npm run test:e2e
+        if: github.event_name == 'pull_request' || contains(toJSON(github.event.head_commit.modified), 'react-v2/')
       - uses: actions/upload-artifact@v4
         with:
           name: recomp-react-v2-dist
