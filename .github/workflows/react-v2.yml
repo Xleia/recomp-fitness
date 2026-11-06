@@ -30,3 +30,37 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        with:
+          name: recomp-react-v2-dist
+          path: react-v2/dist
+          if-no-files-found: error
+          retention-days: 1
+
+  publish-preview:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/refactor/react-v2'
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: site
+      - uses: actions/download-artifact@v4
+        with:
+          name: recomp-react-v2-dist
+          path: site/react-v2
+      - name: Publish preview under the existing Pages site
+        working-directory: site
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add react-v2/
+          if git diff --cached --quiet; then
+            echo "React preview is already up to date."
+          else
+            git commit -m "deploy: publish RECOMP React v2 preview"
+            git push origin HEAD:main
+          fi
