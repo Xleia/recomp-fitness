@@ -1,0 +1,10 @@
+import type { Food } from './catalog';
+export interface CustomFood extends Food { brand?:string; baseUnit:'g'|'ml'; source:'user' }
+export interface FoodLibrary { [key:string]:unknown; customFoods:CustomFood[]; favorites:string[]; templates:unknown[]; dishRecipes:unknown; dishFavorites:unknown }
+const object=(v:unknown):Record<string,unknown>=>v&&typeof v==='object'&&!Array.isArray(v)?v as Record<string,unknown>:{};
+export function readFoodLibrary(state:Record<string,unknown>):FoodLibrary {const s=object(state.foodLibrary),c=Array.isArray(s.customFoods)?s.customFoods:[],f=Array.isArray(s.favorites)?s.favorites:[];return{...s,customFoods:c.filter((x):x is CustomFood=>{const a=object(x),p=object(a.per100);return typeof a.id==='string'&&typeof a.name==='string'&&(a.baseUnit==='g'||a.baseUnit==='ml')&&['kcal','protein','fat','carbs'].every(k=>typeof p[k]==='number'&&Number.isFinite(p[k])&&(p[k] as number)>=0)}).map(a=>({...a,code:typeof a.code==='string'?a.code:'',zh:typeof a.zh==='string'?a.zh:a.name,category:typeof a.category==='string'?a.category:'自定义食品',source:'user' as const})),favorites:f.filter((x):x is string=>typeof x==='string'),templates:Array.isArray(s.templates)?s.templates:[],dishRecipes:s.dishRecipes??null,dishFavorites:s.dishFavorites??null};}
+export function saveMealTemplate(l:FoodLibrary,t:unknown):FoodLibrary{if(l.templates.length>=40)throw Error('最多保存40份常用餐');return{...l,templates:[...l.templates,t]};}
+export function removeMealTemplate(l:FoodLibrary,id:string):FoodLibrary{return{...l,templates:l.templates.filter((x)=>!x||typeof x!=='object'||(x as Record<string,unknown>).id!==id)};}
+export function addCustomFood(l:FoodLibrary,f:CustomFood):FoodLibrary{if(l.customFoods.some(x=>x.id===f.id))throw Error('食品 ID 已存在');return{...l,customFoods:[...l.customFoods,f]};}
+export function toggleFavorite(l:FoodLibrary,id:string):FoodLibrary{return{...l,favorites:l.favorites.includes(id)?l.favorites.filter(x=>x!==id):[...l.favorites,id]};}
+export function deleteCustomFood(l:FoodLibrary,id:string):FoodLibrary{return{...l,customFoods:l.customFoods.filter(x=>x.id!==id),favorites:l.favorites.filter(x=>x!==id)};}

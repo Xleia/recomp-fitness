@@ -1,0 +1,8 @@
+import {describe,expect,it} from 'vitest';
+import {addCustomFood,deleteCustomFood,readFoodLibrary,saveMealTemplate,toggleFavorite} from './food-library';
+const food={id:'custom-1',code:'',name:'燕麦奶',zh:'燕麦奶',category:'自定义食品',brand:'示例',baseUnit:'ml' as const,per100:{kcal:45,protein:1,fat:1.5,carbs:6},source:'user' as const};
+describe('encrypted nutrition library model',()=>{
+ it('preserves unknown and legacy dish data while reading',()=>{const state={foodLibrary:{customFoods:[food],favorites:['custom-1'],templates:[{id:'t',name:'早餐',rows:[{}]}],dishRecipes:{mine:[1]},futureField:{keep:true}}};const lib=readFoodLibrary(state);expect(lib.customFoods).toHaveLength(1);expect(lib.dishRecipes).toEqual({mine:[1]});expect(lib.futureField).toEqual({keep:true});});
+ it('adds custom foods and toggles favorites without mutating input',()=>{const base=readFoodLibrary({});const added=addCustomFood(base,food);const starred=toggleFavorite(added,food.id);expect(base.customFoods).toHaveLength(0);expect(starred.favorites).toEqual([food.id]);expect(toggleFavorite(starred,food.id).favorites).toEqual([]);expect(()=>addCustomFood(added,food)).toThrow();});
+ it('saves and deletes templates immutably',()=>{const base=readFoodLibrary({});const saved=saveMealTemplate(base,{id:'t1',name:'燕麦奶',rows:[{name:'燕麦奶'}]});expect(saved.templates).toHaveLength(1);expect(base.templates).toHaveLength(0);expect(deleteCustomFood({...saved,customFoods:[food],favorites:[food.id]},food.id).favorites).toEqual([]);});
+});
